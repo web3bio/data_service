@@ -4,9 +4,9 @@
 Author: Zella Zhong
 Date: 2024-08-28 19:02:56
 LastEditors: Zella Zhong
-LastEditTime: 2024-08-29 23:20:43
+LastEditTime: 2024-09-06 17:39:58
 FilePath: /data_service/src/app.py
-Description: 
+Description: main entry point
 '''
 import os
 import uvicorn
