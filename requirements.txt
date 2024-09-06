@@ -7,3 +7,4 @@ numpy==1.23.1
 SQLAlchemy==2.0.32
 strawberry-graphql==0.237.3
 supervisor==4.2.5
+pandas==1.4.3
