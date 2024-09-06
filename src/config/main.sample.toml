@@ -1,0 +1,12 @@
+[server]
+server_name = "cryptodata_apollographql"
+ip = "127.0.0.1"
+port = 5000
+work_path = "/app"
+process_count = 4
+log_path = "/app/log"
+log_level = 1
+log_max_size = 1600
+
+[pg_dsn]
+cryptodata = "postgresql://postgres:password@host/dbname"
