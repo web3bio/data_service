@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-29 01:39:58
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 23:28:31
-FilePath: /cryptodata_apollographql/src/scalar/domain.py
+FilePath: /data_service/src/scalar/domain.py
 Description: 
 '''
 import strawberry

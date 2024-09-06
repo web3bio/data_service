@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-28 21:15:34
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 16:35:32
-FilePath: /cryptodata_apollographql/src/model/__init__.py
+FilePath: /data_service/src/model/__init__.py
 Description: 
 '''
 from sqlalchemy.ext.declarative import declarative_base

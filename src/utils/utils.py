@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-28 21:32:19
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 18:42:52
-FilePath: /cryptodata_apollographql/src/utils/utils.py
+FilePath: /data_service/src/utils/utils.py
 Description: 
 '''
 import re

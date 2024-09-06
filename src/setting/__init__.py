@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-28 19:38:25
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 00:13:39
-FilePath: /cryptodata_apollographql/src/setting/__init__.py
+FilePath: /data_service/src/setting/__init__.py
 Description: 
 '''
 import sys

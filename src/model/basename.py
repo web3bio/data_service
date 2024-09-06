@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-29 02:00:40
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 23:22:11
-FilePath: /cryptodata_apollographql/src/model/basename.py
+FilePath: /data_service/src/model/basename.py
 Description: 
 '''
 import time

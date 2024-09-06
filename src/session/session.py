@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-28 19:11:06
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 00:13:13
-FilePath: /cryptodata_apollographql/src/session/session.py
+FilePath: /data_service/src/session/session.py
 Description: 
 '''
 from contextlib import asynccontextmanager

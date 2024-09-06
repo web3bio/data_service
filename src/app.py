@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-28 19:02:56
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 23:20:43
-FilePath: /cryptodata_apollographql/src/app.py
+FilePath: /data_service/src/app.py
 Description: 
 '''
 import os

@@ -1,5 +1,5 @@
 [server]
-server_name = "cryptodata_apollographql"
+server_name = "data_service"
 ip = "127.0.0.1"
 port = 5000
 work_path = "/app"

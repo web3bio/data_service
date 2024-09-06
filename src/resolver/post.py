@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-28 21:29:45
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 00:37:39
-FilePath: /cryptodata_apollographql/src/resolver/post.py
+FilePath: /data_service/src/resolver/post.py
 Description: 
 '''
 import logging

@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 17:53:55
-FilePath: /cryptodata_apollographql/src/schema/query.py
+FilePath: /data_service/src/schema/query.py
 Description: 
 '''
 import logging

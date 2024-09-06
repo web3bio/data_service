@@ -5,7 +5,7 @@ Author: Zella Zhong
 Date: 2024-08-28 21:21:20
 LastEditors: Zella Zhong
 LastEditTime: 2024-08-29 02:34:37
-FilePath: /cryptodata_apollographql/src/model/post.py
+FilePath: /data_service/src/model/post.py
 Description: 
 '''
 import time
