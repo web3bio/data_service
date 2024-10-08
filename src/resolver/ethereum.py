@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:41:34
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 23:57:18
+LastEditTime: 2024-10-08 20:52:32
 FilePath: /data_service/src/resolver/ethereum.py
 Description: 
 '''
@@ -27,7 +27,7 @@ from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile
 from scalar.error import EmptyInput, EvmAddressInvalid, ExceedRangeInput
 
-QUERY_MAX_LIMIT = 50
+QUERY_MAX_LIMIT = 200
 
 def get_selected_fields(field_name: str, selected_fields):
     """

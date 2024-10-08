@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 23:56:44
+LastEditTime: 2024-10-08 20:52:34
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
@@ -28,7 +28,7 @@ from scalar.profile import Profile, SocialProfile
 from scalar.error import EmptyInput, ExceedRangeInput
 
 
-QUERY_MAX_LIMIT = 50
+QUERY_MAX_LIMIT = 200
 
 def get_selected_fields(field_name: str, selected_fields):
     """

@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 23:11:29
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 23:26:08
+LastEditTime: 2024-10-08 20:52:39
 FilePath: /data_service/src/resolver/solana.py
 Description: 
 '''
@@ -27,7 +27,7 @@ from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile
 from scalar.error import EmptyInput, EvmAddressInvalid, ExceedRangeInput
 
-QUERY_MAX_LIMIT = 50
+QUERY_MAX_LIMIT = 200
 
 async def query_profile_by_single_solana(info, address):
     identity_record = IdentityRecord(

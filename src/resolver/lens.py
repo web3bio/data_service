@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 01:31:36
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 23:57:47
+LastEditTime: 2024-10-08 20:52:36
 FilePath: /data_service/src/resolver/lens.py
 Description: 
 '''
@@ -27,7 +27,7 @@ from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile, SocialProfile
 from scalar.error import EmptyInput, ExceedRangeInput
 
-QUERY_MAX_LIMIT = 50
+QUERY_MAX_LIMIT = 200
 
 def get_selected_fields(field_name: str, selected_fields):
     """
