@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-29 17:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-08-29 17:55:21
+LastEditTime: 2024-10-07 03:41:55
 FilePath: /data_service/src/scalar/error.py
 Description: 
 '''
@@ -31,6 +31,18 @@ class EvmAddressInvalid(Exception):
     def __init__(self, addr):
         self.message = "Given evm address is invalid " + "[" + addr + "]"
 
+class EmptyInput(Exception):
+    def __init__(self):
+        self.message = "Given empty input"
+
+class ExceedRangeInput(Exception):
+    def __init__(self, max_limit):
+        self.message = "Input exceeds range: limit " + str(max_limit)
+
+class GraphDBException(Exception):
+    def __init__(self, error_message):
+        self.message = "GraphDBException " + error_message
+
 
 def should_mask_error(error: GraphQLError) -> bool:
     original_error = error.original_error
@@ -44,5 +56,10 @@ def should_mask_error(error: GraphQLError) -> bool:
         return False
     if original_error and isinstance(original_error, EvmAddressInvalid):
         return False
-
+    if original_error and isinstance(original_error, EmptyInput):
+        return False
+    if original_error and isinstance(original_error, ExceedRangeInput):
+        return False
+    if original_error and isinstance(original_error, GraphDBException):
+        return False
     return True
