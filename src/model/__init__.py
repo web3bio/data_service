@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 21:15:34
 LastEditors: Zella Zhong
-LastEditTime: 2024-08-29 16:35:32
+LastEditTime: 2024-10-06 19:02:39
 FilePath: /data_service/src/model/__init__.py
 Description: 
 '''
@@ -20,6 +20,7 @@ Base = declarative_base()
 
 from .post import Post
 from .basename import BasenameModel
+from .ensname import EnsnameModel
 
 
 class UnixToDatetime(TypeDecorator):
