@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 01:31:36
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-08 20:52:36
+LastEditTime: 2024-10-09 13:29:42
 FilePath: /data_service/src/resolver/lens.py
 Description: 
 '''
@@ -22,6 +22,7 @@ from utils import check_evm_address, convert_camel_case
 
 from scalar.platform import Platform
 from scalar.network import Network, Address
+from scalar.coin_type import CoinType, Record
 from scalar.identity_graph import IdentityRecordSimplified
 from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile, SocialProfile
@@ -96,8 +97,8 @@ def get_lens_selected_fields(info):
                                 continue
                             case "texts":
                                 profile_fields.append("texts")
-                            case "records":
-                                continue
+                            case "addresses":
+                                profile_fields.append("address")
                             case "social":
                                 social_selected_fields = get_selected_fields("social", profile_selected_fields)
                                 if social_selected_fields:
@@ -165,8 +166,8 @@ def get_lens_selected_fields(info):
                                                 continue
                                             case "texts":
                                                 profile_fields.append("texts")
-                                            case "records":
-                                                continue
+                                            case "addresses":
+                                                profile_fields.append("address")
                                             case "social":
                                                 social_selected_fields = get_selected_fields("social", profile_selected_fields)
                                                 if social_selected_fields:
@@ -232,11 +233,14 @@ async def query_profile_by_single_lens_handle(info, name):
     network = None
     resolved_address = []
     owner_address = []
+    records = []
     address = profile_record.get('address', None)
     if address is not None:
         network = Network.ethereum
         resolved_address.append(Address(address=address, network=network))
         owner_address.append(Address(address=address, network=network))
+        records.append(Record(address=address, coin_type=CoinType.eth))
+
     name = profile_record.get('name', None)
     if name is None:
         return None
@@ -247,6 +251,12 @@ async def query_profile_by_single_lens_handle(info, name):
     else:
         texts = None
 
+    cover_picture = profile_record.get('cover_picture', None)
+    if cover_picture is not None:
+        if texts is not None:
+            texts["header"] = cover_picture
+        else:
+            texts = {"header": cover_picture}
 
     profile = Profile(
         uid=profile_id,
@@ -256,9 +266,9 @@ async def query_profile_by_single_lens_handle(info, name):
         address=address,
         display_name=profile_record.get('display_name', None),
         avatar=profile_record.get('avatar', None),
-        cover_picture=profile_record.get('cover_picture', None),
         description=profile_record.get('description', None),
         texts=texts,
+        addresses=records,
         social=None,
     )
     if social_record:
@@ -324,11 +334,14 @@ async def query_profile_by_lens_handle(info, names):
         network = None
         resolved_addresses = []
         owner_addresses = []
+        records = []
         address = profile_record.get('address', None)
         if address is not None:
             network = Network.ethereum
             resolved_addresses.append(Address(address=address, network=network))
             owner_addresses.append(Address(address=address, network=network))
+            records.append(Record(address=address, coin_type=CoinType.eth))
+
         name = profile_record.get('name', None)
         if name is None:
             continue
@@ -338,6 +351,13 @@ async def query_profile_by_lens_handle(info, names):
             texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
         else:
             texts = None
+
+        cover_picture = profile_record.get('cover_picture', None)
+        if cover_picture is not None:
+            if texts is not None:
+                texts["header"] = cover_picture
+            else:
+                texts = {"header": cover_picture}
 
         social = None
         if profile_record is not None:
@@ -349,9 +369,9 @@ async def query_profile_by_lens_handle(info, names):
                 address=address,
                 display_name=profile_record.get('display_name', None),
                 avatar=profile_record.get('avatar', None),
-                cover_picture=profile_record.get('cover_picture', None),
                 description=profile_record.get('description', None),
                 texts=texts,
+                addresses=records,
                 social=None,
             )
             if social_dict:

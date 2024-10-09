@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-08 20:52:34
+LastEditTime: 2024-10-09 13:13:39
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
@@ -22,6 +22,7 @@ from utils import check_evm_address, convert_camel_case
 
 from scalar.platform import Platform
 from scalar.network import Network, Address
+from scalar.coin_type import CoinType, Record
 from scalar.identity_graph import IdentityRecordSimplified
 from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile, SocialProfile
@@ -104,8 +105,10 @@ def get_farcaster_selected_fields(info):
                                 continue
                             case "texts":
                                 continue
-                            case "records":
-                                continue
+                            case "addresses":
+                                verified_fields.append("fid")
+                                verified_fields.append("network")
+                                verified_fields.append("address")
                             case "social":
                                 social_selected_fields = get_selected_fields("social", profile_selected_fields)
                                 if social_selected_fields:
@@ -179,8 +182,10 @@ def get_farcaster_selected_fields(info):
                                                 continue
                                             case "texts":
                                                 continue
-                                            case "records":
-                                                continue
+                                            case "addresses":
+                                                verified_fields.append("fid")
+                                                verified_fields.append("network")
+                                                verified_fields.append("address")
                                             case "social":
                                                 social_selected_fields = get_selected_fields("social", profile_selected_fields)
                                                 if social_selected_fields:
@@ -225,6 +230,7 @@ async def query_profile_by_single_fname(info, fname):
     profile_record = None
     fid = None
     owner_addresses = []
+    records = []
     social_record = None
     async with get_session() as s:
         if len(profile_fields) > 0:
@@ -246,6 +252,10 @@ async def query_profile_by_single_fname(info, fname):
                 verified_records = verified_result.scalars().all()
                 for row in verified_records:
                     owner_addresses.append(Address(address=row.address, network=row.network))
+                    if row.network == Network.ethereum.value:
+                        records.append(Record(address=row.address, coin_type=CoinType.eth))
+                    elif row.network == Network.solana.value:
+                        records.append(Record(address=row.address, coin_type=CoinType.sol))
 
         if len(social_fields) > 0:
             if fid is not None:
@@ -274,8 +284,8 @@ async def query_profile_by_single_fname(info, fname):
         address=address,
         display_name=profile_record.get('display_name', None),
         avatar=profile_record.get('avatar', None),
-        cover_picture=profile_record.get('cover_picture', None),
         description=profile_record.get('description', None),
+        addresses=records,
         social=None,
     )
 
@@ -358,6 +368,7 @@ async def query_profile_by_fnames(info, fnames):
         if fname is None:
             continue
         owner_addresses = []
+        records = []
         social = None
         if profile_record is not None:
             profile = Profile(
@@ -368,7 +379,6 @@ async def query_profile_by_fnames(info, fnames):
                 address=address,
                 display_name=profile_record.get('display_name', None),
                 avatar=profile_record.get('avatar', None),
-                cover_picture=profile_record.get('cover_picture', None),
                 description=profile_record.get('description', None),
                 social=None,
             )
@@ -381,6 +391,11 @@ async def query_profile_by_fnames(info, fnames):
                             network=verified.network,
                         )
                     )
+                    if verified.network == Network.ethereum.value:
+                        records.append(Record(address=verified.address, coin_type=CoinType.eth))
+                    elif verified.network == Network.solana.value:
+                        records.append(Record(address=verified.address, coin_type=CoinType.sol))
+                profile.addresses = records
 
             if social_dict:
                 social_info = social_dict.get(fid, None)

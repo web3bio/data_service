@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:41:34
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-08 20:52:32
+LastEditTime: 2024-10-09 13:43:18
 FilePath: /data_service/src/resolver/ethereum.py
 Description: 
 '''
@@ -22,6 +22,7 @@ from utils import check_evm_address, convert_camel_case
 
 from scalar.platform import Platform
 from scalar.network import Network
+from scalar.coin_type import CoinType, Record
 from scalar.identity_graph import IdentityRecordSimplified
 from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile
@@ -89,6 +90,7 @@ def get_profile_selected_fields(db_baseclass_name, info):
                                 continue
                             case "display_name":
                                 filter_selected_fields.append("name")
+                                filter_selected_fields.append("texts")
                             case "avatar":
                                 continue
                             case "description":
@@ -97,7 +99,7 @@ def get_profile_selected_fields(db_baseclass_name, info):
                                 filter_selected_fields.append("contenthash")
                             case "texts":
                                 filter_selected_fields.append("texts")
-                            case "records":
+                            case "addresses":
                                 filter_selected_fields.append("resolved_records")
             case "graph_id":
                 continue
@@ -141,6 +143,7 @@ def get_profile_selected_fields(db_baseclass_name, info):
                                                 continue
                                             case "display_name":
                                                 filter_selected_fields.append("name")
+                                                filter_selected_fields.append("texts")
                                             case "avatar":
                                                 continue
                                             case "description":
@@ -149,7 +152,7 @@ def get_profile_selected_fields(db_baseclass_name, info):
                                                 filter_selected_fields.append("contenthash")
                                             case "texts":
                                                 filter_selected_fields.append("texts")
-                                            case "records":
+                                            case "addresses":
                                                 filter_selected_fields.append("resolved_records")
             # If an exact match is not confirmed, this last case will be used if provided
             case _:
@@ -193,6 +196,8 @@ async def query_profile_by_single_address(info, address):
         )
 
     profile_record = {key: value for key, value in db_result.__dict__.items()}
+    name = profile_record.get('name', None)
+    display_name = name
     avatar = None
     description = None
     texts = profile_record.get('texts', {})
@@ -200,8 +205,17 @@ async def query_profile_by_single_address(info, address):
         texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
         avatar = texts.get("avatar", None)
         description = texts.get("description", None)
+        display_name = texts.get("name", name)
     else:
         texts = None
+
+    resolved_records = profile_record.get('resolved_records', {})
+    records = []
+    if resolved_records:
+        for coin_type, addr in resolved_records.items():
+            if coin_type in CoinType.__members__:
+                if addr != "0x":
+                    records.append(Record(coin_type=CoinType[coin_type], address=addr))
 
     network = None
     address = profile_record.get('resolved_address', None)
@@ -210,16 +224,16 @@ async def query_profile_by_single_address(info, address):
 
     profile = Profile(
         uid=None,
-        identity=profile_record.get('name', None),
+        identity=name,
         platform=Platform.ens,
         network=network,
         address=address,
-        display_name=profile_record.get('name', None),
+        display_name=display_name,
         avatar=avatar,
         description=description,
         contenthash=profile_record.get('contenthash', None),
         texts=texts,
-        records=profile_record.get('resolved_records', None),
+        addresses=records,
         social=None
     )
     identity_record = IdentityRecord(
@@ -273,6 +287,8 @@ async def query_profile_by_addresses(info, addresses):
             ))
         else:
             # Ensure 'texts' exists dynamically using hasattr()
+            name = profile_record.get('name', None)
+            display_name = name
             avatar = None
             description = None
             texts = profile_record.get('texts', {})
@@ -280,8 +296,17 @@ async def query_profile_by_addresses(info, addresses):
                 texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
                 avatar = texts.get("avatar", None)
                 description = texts.get("description", None)
+                display_name = texts.get("name", name)
             else:
                 texts = None
+
+            resolved_records = profile_record.get('resolved_records', {})
+            records = []
+            if resolved_records:
+                for coin_type, addr in resolved_records.items():
+                    if coin_type in CoinType.__members__:
+                        if addr != "0x":
+                            records.append(Record(coin_type=CoinType[coin_type], address=addr))
 
             network = None
             address = profile_record.get('resolved_address', None)
@@ -289,16 +314,16 @@ async def query_profile_by_addresses(info, addresses):
                 network = Network.ethereum
             profile = Profile(
                 uid=None,
-                identity=profile_record.get('name', None),
+                identity=name,
                 platform=Platform.ens,
                 network=network,
                 address=address,
-                display_name=profile_record.get('name', None),
+                display_name=display_name,
                 avatar=avatar,
                 description=description,
                 contenthash=profile_record.get('contenthash', None),
                 texts=texts,
-                records=profile_record.get('resolved_records', None),
+                addresses=records,
                 social=None
             )
             result.append(IdentityRecordSimplified(
