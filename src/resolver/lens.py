@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 01:31:36
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 13:29:42
+LastEditTime: 2024-10-09 14:49:09
 FilePath: /data_service/src/resolver/lens.py
 Description: 
 '''
@@ -21,8 +21,7 @@ from model.lens import LensV2Profile, LensV2Social
 from utils import check_evm_address, convert_camel_case
 
 from scalar.platform import Platform
-from scalar.network import Network, Address
-from scalar.coin_type import CoinType, Record
+from scalar.network import Network, Address, CoinTypeMap
 from scalar.identity_graph import IdentityRecordSimplified
 from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile, SocialProfile
@@ -239,7 +238,7 @@ async def query_profile_by_single_lens_handle(info, name):
         network = Network.ethereum
         resolved_address.append(Address(address=address, network=network))
         owner_address.append(Address(address=address, network=network))
-        records.append(Record(address=address, coin_type=CoinType.eth))
+        records.append(Address(address=address, network=network))
 
     name = profile_record.get('name', None)
     if name is None:
@@ -340,7 +339,7 @@ async def query_profile_by_lens_handle(info, names):
             network = Network.ethereum
             resolved_addresses.append(Address(address=address, network=network))
             owner_addresses.append(Address(address=address, network=network))
-            records.append(Record(address=address, coin_type=CoinType.eth))
+            records.append(Address(address=address, network=network))
 
         name = profile_record.get('name', None)
         if name is None:

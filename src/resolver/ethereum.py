@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:41:34
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 13:43:18
+LastEditTime: 2024-10-09 14:46:09
 FilePath: /data_service/src/resolver/ethereum.py
 Description: 
 '''
@@ -21,8 +21,7 @@ from model import EnsnameModel
 from utils import check_evm_address, convert_camel_case
 
 from scalar.platform import Platform
-from scalar.network import Network
-from scalar.coin_type import CoinType, Record
+from scalar.network import Network, Address, CoinTypeMap
 from scalar.identity_graph import IdentityRecordSimplified
 from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile
@@ -213,9 +212,9 @@ async def query_profile_by_single_address(info, address):
     records = []
     if resolved_records:
         for coin_type, addr in resolved_records.items():
-            if coin_type in CoinType.__members__:
+            if coin_type in CoinTypeMap:
                 if addr != "0x":
-                    records.append(Record(coin_type=CoinType[coin_type], address=addr))
+                    records.append(Address(network=CoinTypeMap[coin_type], address=addr))
 
     network = None
     address = profile_record.get('resolved_address', None)
@@ -304,9 +303,9 @@ async def query_profile_by_addresses(info, addresses):
             records = []
             if resolved_records:
                 for coin_type, addr in resolved_records.items():
-                    if coin_type in CoinType.__members__:
+                    if coin_type in CoinTypeMap:
                         if addr != "0x":
-                            records.append(Record(coin_type=CoinType[coin_type], address=addr))
+                            records.append(Address(network=CoinTypeMap[coin_type], address=addr))
 
             network = None
             address = profile_record.get('resolved_address', None)

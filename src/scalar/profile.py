@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:39:33
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 13:25:48
+LastEditTime: 2024-10-09 14:49:54
 FilePath: /data_service/src/scalar/profile.py
 Description: 
 '''
@@ -16,8 +16,7 @@ from strawberry.scalars import JSON
 
 
 from .platform import Platform
-from .network import Network
-from .coin_type import Record
+from .network import Network, Address
 
 @strawberry.type
 class SocialProfile:
@@ -39,5 +38,5 @@ class Profile:
     description: typing.Optional[str] = None
     contenthash: typing.Optional[str] = None
     texts: typing.Optional[JSON] = None
-    addresses: typing.List[Record] = strawberry.field(default_factory=list)
+    addresses: typing.List[Address] = strawberry.field(default_factory=list)
     social: typing.Optional[SocialProfile] = None

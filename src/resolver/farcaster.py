@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 13:13:39
+LastEditTime: 2024-10-09 14:48:38
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
@@ -21,8 +21,7 @@ from model.farcaster import FarcasterProfile, FarcasterVerified, FarcasterSocial
 from utils import check_evm_address, convert_camel_case
 
 from scalar.platform import Platform
-from scalar.network import Network, Address
-from scalar.coin_type import CoinType, Record
+from scalar.network import Network, Address, CoinTypeMap
 from scalar.identity_graph import IdentityRecordSimplified
 from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile, SocialProfile
@@ -252,10 +251,7 @@ async def query_profile_by_single_fname(info, fname):
                 verified_records = verified_result.scalars().all()
                 for row in verified_records:
                     owner_addresses.append(Address(address=row.address, network=row.network))
-                    if row.network == Network.ethereum.value:
-                        records.append(Record(address=row.address, coin_type=CoinType.eth))
-                    elif row.network == Network.solana.value:
-                        records.append(Record(address=row.address, coin_type=CoinType.sol))
+                    records.append(Address(address=row.address, network=row.network))
 
         if len(social_fields) > 0:
             if fid is not None:
@@ -391,10 +387,12 @@ async def query_profile_by_fnames(info, fnames):
                             network=verified.network,
                         )
                     )
-                    if verified.network == Network.ethereum.value:
-                        records.append(Record(address=verified.address, coin_type=CoinType.eth))
-                    elif verified.network == Network.solana.value:
-                        records.append(Record(address=verified.address, coin_type=CoinType.sol))
+                    records.append(
+                        Address(
+                            address=verified.address,
+                            network=verified.network,
+                        )
+                    )
                 profile.addresses = records
 
             if social_dict:

@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:32:53
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 13:43:44
+LastEditTime: 2024-10-09 14:45:05
 FilePath: /data_service/src/resolver/ensname.py
 Description: 
 '''
@@ -21,11 +21,10 @@ from model import EnsnameModel
 from utils import check_evm_address, convert_camel_case, compute_namehash_nowrapped
 
 from scalar.platform import Platform
-from scalar.network import Network, Address
+from scalar.network import Network, Address, CoinTypeMap
 from scalar.identity_graph import IdentityRecordSimplified
 from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile
-from scalar.coin_type import CoinType, Record
 from scalar.error import DomainNotFound, EmptyInput, EvmAddressInvalid, ExceedRangeInput
 
 QUERY_MAX_LIMIT = 200
@@ -225,9 +224,9 @@ async def query_profile_by_single_ensname(info, name):
     records = []
     if resolved_records:
         for coin_type, addr in resolved_records.items():
-            if coin_type in CoinType.__members__:
+            if coin_type in CoinTypeMap:
                 if addr != "0x":
-                    records.append(Record(coin_type=CoinType[coin_type], address=addr))
+                    records.append(Address(network=CoinTypeMap[coin_type], address=addr))
 
     profile = Profile(
         uid=None,
@@ -323,9 +322,9 @@ async def query_profile_by_ensnames(info, names):
             records = []
             if resolved_records:
                 for coin_type, addr in resolved_records.items():
-                    if coin_type in CoinType.__members__:
+                    if coin_type in CoinTypeMap:
                         if addr != "0x":
-                            records.append(Record(coin_type=CoinType[coin_type], address=addr))
+                            records.append(Address(network=CoinTypeMap[coin_type], address=addr))
 
             profile = Profile(
                 uid=None,
