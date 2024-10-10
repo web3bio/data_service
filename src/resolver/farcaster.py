@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 14:48:38
+LastEditTime: 2024-10-10 19:17:04
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
@@ -238,7 +238,7 @@ async def query_profile_by_single_fname(info, fname):
                 .filter(FarcasterProfile.fname == fname)
             profile_result = await s.execute(profile_sql)
             one_profile_record = profile_result.scalars().one()
-            if one_profile_record is None:
+            if one_profile_record is not None:
                 fid = one_profile_record.fid
                 profile_record = {key: value for key, value in one_profile_record.__dict__.items()}
 

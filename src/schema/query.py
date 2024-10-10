@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 03:06:33
+LastEditTime: 2024-10-10 19:03:44
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -22,7 +22,7 @@ from resolver import basename_domain_query
 from resolver.basename import query_basenames_by_owner, query_basenames_by_name
 
 
-from resolver.fetch import batch_fetch, single_fetch
+from resolver.fetch import batch_fetch, single_fetch, batch_fetch_all
 
 from scalar.platform import Platform
 from scalar.identity_record import IdentityRecord
@@ -47,10 +47,26 @@ class WhereFilter:
 @strawberry.type
 class Query:
     @strawberry.field
-    async def identities(self, info: Info, platform: Platform, identities: List[str]) -> List[IdentityRecordSimplified]:
+    async def identities(self, info: Info, ids: List[str]) -> List[IdentityRecordSimplified]:
         # only select profile, ignore identity_graph
-        logging.debug("Query by identities(platform=%s, identities=%s)", platform, json.dumps(identities))
-        result = await batch_fetch(info, platform, identities)
+        logging.debug("Query by identities batch fetch(identities=%s)", json.dumps(ids))
+        vertices_map = {}
+        for row in ids:
+            item = row.split(",")
+            if len(item) < 2:
+                continue
+
+            _platform = item[0]
+            _identity = item[1]
+            if _platform not in Platform.__members__:
+                continue
+
+            if _platform not in vertices_map:
+                vertices_map[_platform] = []
+
+            vertices_map[_platform].append(_identity)
+
+        result = await batch_fetch_all(info, vertices_map)
         return result
 
     @strawberry.field
