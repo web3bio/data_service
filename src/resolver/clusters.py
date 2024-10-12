@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 14:10:05
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 17:07:43
+LastEditTime: 2024-10-12 17:26:02
 FilePath: /data_service/src/resolver/clusters.py
 Description: 
 '''
@@ -235,6 +235,12 @@ async def query_profile_by_single_clusters(info, query_str):
                         network=network
                     )
                 )
+                cluster_name_dict[cluster_name].resolved_address.append(
+                    Address(
+                        address=address,
+                        network=network
+                    )
+                )
                 cluster_name_dict[cluster_name].profile.addresses.append(
                     Address(
                         address=address,
@@ -262,6 +268,7 @@ async def query_profile_by_single_clusters(info, query_str):
             return None
 
         owner_addresses = []
+        resolved_addresses = []
         records = []
         platform = Platform.clusters
         cluster_name = name_profile_record.get('cluster_name', None)
@@ -278,6 +285,12 @@ async def query_profile_by_single_clusters(info, query_str):
         network = name_profile_record.get('network', None)
         if address != "":
             owner_addresses.append(
+                Address(
+                    address=address,
+                    network=network
+                )
+            )
+            resolved_addresses.append(
                 Address(
                     address=address,
                     network=network
@@ -310,7 +323,7 @@ async def query_profile_by_single_clusters(info, query_str):
             primary_name=None,
             is_primary=False,
             expired_at=None,
-            resolved_address=[],
+            resolved_address=resolved_addresses,
             owner_address=owner_addresses,
             profile=profile
         )
@@ -349,6 +362,7 @@ async def query_profile_by_batch_clusters(info, batch_clusters_name):
     cluster_name_dict = {}
     for _, item in profile_dict.items():
         owner_addresses = []
+        resolved_addresses = []
         records = []
         platform = Platform.clusters
         cluster_name = item.get('cluster_name', None)
@@ -396,6 +410,12 @@ async def query_profile_by_batch_clusters(info, batch_clusters_name):
                     network=network
                 )
             )
+            resolved_addresses.append(
+                Address(
+                    address=address,
+                    network=network
+                )
+            )
             records.append(
                 Address(
                     address=address,
@@ -403,6 +423,12 @@ async def query_profile_by_batch_clusters(info, batch_clusters_name):
                 )
             )
             cluster_name_dict[cluster_name].owner_address.append(
+                Address(
+                    address=address,
+                    network=network
+                )
+            )
+            cluster_name_dict[cluster_name].resolved_address.append(
                 Address(
                     address=address,
                     network=network
