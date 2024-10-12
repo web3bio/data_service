@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 14:10:05
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 15:38:52
+LastEditTime: 2024-10-12 17:07:43
 FilePath: /data_service/src/resolver/clusters.py
 Description: 
 '''
@@ -274,8 +274,8 @@ async def query_profile_by_single_clusters(info, query_str):
 
         primary_id = "{},{}/{}".format(platform.value, cluster_name, name)
         identity = "{}/{}".format(cluster_name, name)
-        address = item.get('address', None)
-        network = item.get('network', None)
+        address = name_profile_record.get('address', None)
+        network = name_profile_record.get('network', None)
         if address != "":
             owner_addresses.append(
                 Address(
