@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:36:16
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-06 20:46:02
+LastEditTime: 2024-10-12 15:38:03
 FilePath: /data_service/src/scalar/data_source.py
 Description: 
 '''
@@ -16,3 +16,4 @@ class DataSource(Enum):
     farcaster = "farcaster"
     lens = "lens"
     ens = "ens"
+    clusters = "clusters"
