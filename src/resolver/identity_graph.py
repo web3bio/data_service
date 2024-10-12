@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 03:10:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 23:01:41
+LastEditTime: 2024-10-12 17:13:29
 FilePath: /data_service/src/resolver/identity_graph.py
 Description: 
 '''
@@ -38,22 +38,23 @@ from scalar.error import GraphDBException
 from .fetch import batch_fetch_all
 
 
-async def find_identity_graph(info, self_id):
+async def find_identity_graph(info, self_platform, self_identity):
     '''
     description:
     find_identity_graph query:
-    curl -X GET 'http://hostname:restpp_port/restpp/query/SocialGraph/find_identity_graph?p=VALUE&[reverse_flag=VALUE]
+    curl -X GET 'http://hostname:restpp_port/restpp/query/SocialGraph/find_identity_graph?platform=VALUE&identity&[reverse_flag=VALUE]
     '''
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + setting.TIGERGRAPH_SETTINGS["social_graph_token"]
     }
 
-    query_url = "http://{}:{}/restpp/query/{}/find_identity_graph?p={}&reverse_flag=0".format(
+    query_url = "http://{}:{}/restpp/query/{}/find_identity_graph?platform={}&identity={}&reverse_flag=0".format(
         setting.TIGERGRAPH_SETTINGS["host"],
         setting.TIGERGRAPH_SETTINGS["restpp"],
         setting.TIGERGRAPH_SETTINGS["social_graph_name"],
-        self_id
+        self_platform,
+        self_identity
     )
     logging.info("find_identity_graph %s", query_url)
     vertices = []
@@ -66,7 +67,7 @@ async def find_identity_graph(info, self_id):
             res = json.loads(raw_text)
 
             if "error" in res and res["error"] is True:
-                error_msg = "graphdb find_identity_graph[{}] failed:, error={}".format(self_id, res)
+                error_msg = "graphdb find_identity_graph[{},{}] failed:, error={}".format(self_platform, self_identity, res)
                 logging.error(error_msg)
                 return GraphDBException(error_msg)
 
