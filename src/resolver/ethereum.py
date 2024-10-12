@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:41:34
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 14:46:09
+LastEditTime: 2024-10-12 14:17:22
 FilePath: /data_service/src/resolver/ethereum.py
 Description: 
 '''
@@ -248,8 +248,8 @@ async def query_profile_by_single_address(info, address):
     return identity_record
 
 async def query_profile_by_addresses(info, addresses):
-    if len(addresses) == 0:
-        return EmptyInput()
+    # if len(addresses) == 0:
+    #     return EmptyInput()
     if len(addresses) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
     logging.debug("query_profile_by_addresses %s", addresses)

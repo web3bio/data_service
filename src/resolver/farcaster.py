@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-10 19:17:04
+LastEditTime: 2024-10-12 14:17:27
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
@@ -309,8 +309,8 @@ async def query_profile_by_single_fname(info, fname):
     return identity_record
 
 async def query_profile_by_fnames(info, fnames):
-    if len(fnames) == 0:
-        return EmptyInput()
+    # if len(fnames) == 0:
+    #     return EmptyInput()
 
     if len(fnames) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)

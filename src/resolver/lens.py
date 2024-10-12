@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 01:31:36
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 14:49:09
+LastEditTime: 2024-10-12 14:17:36
 FilePath: /data_service/src/resolver/lens.py
 Description: 
 '''
@@ -294,8 +294,8 @@ async def query_profile_by_single_lens_handle(info, name):
     return identity_record
 
 async def query_profile_by_lens_handle(info, names):
-    if len(names) == 0:
-        return EmptyInput()
+    # if len(names) == 0:
+    #     return EmptyInput()
 
     if len(names) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)

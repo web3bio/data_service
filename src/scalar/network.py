@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:23:57
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 14:31:34
+LastEditTime: 2024-10-12 14:34:49
 FilePath: /data_service/src/scalar/network.py
 Description: 
 '''
@@ -43,6 +43,12 @@ class Network(Enum):
     linea = "linea"
     scroll = "scroll"
     zora = "zora"
+    aptos = "aptos"
+    stacks = "stacks"
+    tron = "tron"
+    ton = "ton"
+    xrpc = "xrpc"
+    cosmos = "cosmos"
 
     # Non-EVM
     bitcoin = "bitcoin"
@@ -82,7 +88,7 @@ class Network(Enum):
 
     decred = "decred"
     monero = "monero"
-    near_protocol = "near_protocol"
+    near = "near"
     solana = "solana"
     haven_protocol = "haven_protocol"
     hive = "hive"
@@ -140,6 +146,12 @@ CoinTypeMap = {
     "linea": Network.linea,
     "scr": Network.scroll,
     "zora": Network.zora,
+    "aptos": Network.aptos,
+    "stacks": Network.stacks,
+    "tron": Network.tron,
+    "ton": Network.ton,
+    "xrpc": Network.xrpc,
+    "cosmos": Network.cosmos,
 
     # Non-EVM
     "btc": Network.bitcoin,
@@ -179,7 +191,7 @@ CoinTypeMap = {
 
     "dcr": Network.decred,
     "xmr": Network.monero,
-    "near": Network.near_protocol,
+    "near": Network.near,
     "sol": Network.solana,
     "xhv": Network.haven_protocol,
     "hive": Network.hive,

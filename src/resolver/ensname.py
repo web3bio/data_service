@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:32:53
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 14:45:05
+LastEditTime: 2024-10-12 14:17:15
 FilePath: /data_service/src/resolver/ensname.py
 Description: 
 '''
@@ -257,8 +257,8 @@ async def query_profile_by_single_ensname(info, name):
     return identity_record
 
 async def query_profile_by_ensnames(info, names):
-    if len(names) == 0:
-        return EmptyInput()
+    # if len(names) == 0:
+    #     return EmptyInput()
     if len(names) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
 

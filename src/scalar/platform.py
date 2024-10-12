@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:45:51
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 04:09:44
+LastEditTime: 2024-10-12 16:20:42
 FilePath: /data_service/src/scalar/platform.py
 Description: 
 '''
@@ -18,3 +18,13 @@ class Platform(Enum):
     ens = "ens"
     farcaster = "farcaster"
     lens = "lens"
+    clusters = "clusters"
+    bitcoin = "bitcoin"
+    litecoin = "litecoin"
+    dogecoin = "dogecoin"
+    aptos = "aptos"
+    stacks = "stacks"
+    tron = "tron"
+    ton = "ton"
+    xrpc = "xrpc"
+    cosmos = "cosmos"
