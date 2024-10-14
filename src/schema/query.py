@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-10 19:03:44
+LastEditTime: 2024-10-14 14:03:15
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -50,7 +50,7 @@ class Query:
     async def identities(self, info: Info, ids: List[str]) -> List[IdentityRecordSimplified]:
         # only select profile, ignore identity_graph
         logging.debug("Query by identities batch fetch(identities=%s)", json.dumps(ids))
-        vertices_map = {}
+        vertices_setmap = {}
         for row in ids:
             item = row.split(",")
             if len(item) < 2:
@@ -61,11 +61,14 @@ class Query:
             if _platform not in Platform.__members__:
                 continue
 
-            if _platform not in vertices_map:
-                vertices_map[_platform] = []
+            if _platform not in vertices_setmap:
+                vertices_setmap[_platform] = set()
 
-            vertices_map[_platform].append(_identity)
+            vertices_setmap[_platform].add(_identity)
 
+        vertices_map = {}
+        for k, v in vertices_setmap.items():
+            vertices_map[k] = list(v)
         result = await batch_fetch_all(info, vertices_map)
         return result
 
