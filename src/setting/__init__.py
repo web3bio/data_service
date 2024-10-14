@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 19:38:25
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-14 23:11:48
+LastEditTime: 2024-10-15 00:47:58
 FilePath: /data_service/src/setting/__init__.py
 Description: 
 '''
@@ -43,6 +43,10 @@ REDIS_SETTINGS = {
     "db": 0,
 }
 
+AUTHENTICATE = {
+    "secret": ""
+}
+
 
 def load_dsn(config_file):
     """
@@ -70,7 +74,7 @@ def load_settings(env="test"):
     global PG_DSN
     global TIGERGRAPH_SETTINGS
     global REDIS_SETTINGS
-
+    global AUTHENTICATE
     config_file = "/app/config/production.toml"
     if env is not None:
         if env not in ["development", "test", "production"]:
@@ -97,6 +101,9 @@ def load_settings(env="test"):
         "port": config["redis"]["port"],
         "password": config["redis"]["password"],
         "db": config["redis"]["db"],
+    }
+    AUTHENTICATE = {
+        "secret": config["authenticate"]["secret"],
     }
     return config
 

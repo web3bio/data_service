@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-15 00:36:36
+LastEditTime: 2024-10-15 00:48:45
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -29,7 +29,7 @@ from scalar.error import PlatformNotSupport
 from resolver import basename_domain_query
 from resolver.basename import query_basenames_by_owner, query_basenames_by_name
 
-
+import setting
 from cache.redis import RedisClient
 
 from resolver.fetch import batch_fetch, single_fetch, batch_fetch_all
@@ -38,8 +38,6 @@ from scalar.platform import Platform
 from scalar.identity_record import IdentityRecord
 from scalar.identity_graph import IdentityRecordSimplified
 
-
-SECRET_KEY = os.getenv("SECRET_KEY")
 
 class RateLimitPermission(BasePermission):
     message = "Not authenticated"
@@ -112,7 +110,7 @@ class RateLimitPermission(BasePermission):
     async def validate_token(self, token):
         try:
             # Validate the token
-            payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+            payload = jwt.decode(token, setting.AUTHENTICATE["secret"], algorithms=['HS256'])
             return True  # Token is valid
         except jwt.ExpiredSignatureError:
             raise HTTPException(status_code=401, detail="Token has expired")
@@ -136,7 +134,7 @@ class IsAuthenticated(BasePermission):
 
         try:
             # Validate the token
-            jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            jwt.decode(token, setting.AUTHENTICATE["secret"], algorithms=["HS256"])
             return True  # Token is valid
         except jwt.ExpiredSignatureError:
             raise HTTPException(status_code=401, detail="Token has expired")
