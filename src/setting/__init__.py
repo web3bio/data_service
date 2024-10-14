@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 19:38:25
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-06 17:10:22
+LastEditTime: 2024-10-14 23:11:48
 FilePath: /data_service/src/setting/__init__.py
 Description: 
 '''
@@ -36,6 +36,13 @@ TIGERGRAPH_SETTINGS = {
     "social_graph_token": "",
 }
 
+REDIS_SETTINGS = {
+    "host": "",
+    "port": 0,
+    "password": "",
+    "db": 0,
+}
+
 
 def load_dsn(config_file):
     """
@@ -62,6 +69,7 @@ def load_settings(env="test"):
     global Settings
     global PG_DSN
     global TIGERGRAPH_SETTINGS
+    global REDIS_SETTINGS
 
     config_file = "/app/config/production.toml"
     if env is not None:
@@ -83,6 +91,12 @@ def load_settings(env="test"):
         "social_graph_name": config["tdb"]["social_graph_name"],
         "social_graph_secret": config["tdb"]["social_graph_secret"],
         "social_graph_token": config["tdb"]["social_graph_token"],
+    }
+    REDIS_SETTINGS = {
+        "host": config["redis"]["host"],
+        "port": config["redis"]["port"],
+        "password": config["redis"]["password"],
+        "db": config["redis"]["db"],
     }
     return config
 

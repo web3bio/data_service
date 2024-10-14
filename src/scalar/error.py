@@ -4,13 +4,14 @@
 Author: Zella Zhong
 Date: 2024-08-29 17:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 03:41:55
+LastEditTime: 2024-10-14 23:44:43
 FilePath: /data_service/src/scalar/error.py
 Description: 
 '''
 import strawberry
 from strawberry.extensions import MaskErrors
 from graphql.error import GraphQLError
+import fastapi
 
 class VisibleError(Exception):
     pass
@@ -61,5 +62,9 @@ def should_mask_error(error: GraphQLError) -> bool:
     if original_error and isinstance(original_error, ExceedRangeInput):
         return False
     if original_error and isinstance(original_error, GraphDBException):
+        return False
+    if original_error and isinstance(original_error, strawberry.exceptions.StrawberryGraphQLError):
+        return False
+    if original_error and isinstance(original_error, fastapi.exceptions.HTTPException):
         return False
     return True
