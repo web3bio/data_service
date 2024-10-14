@@ -15,6 +15,8 @@ COPY run.sh .
 COPY supervisord.conf .
 
 COPY .env.example .env
+COPY .secret .secret
+RUN cat .secret >> .env
 
 EXPOSE 5000
 ENTRYPOINT ["./run.sh"]

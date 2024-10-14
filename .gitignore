@@ -1,7 +1,9 @@
 .vscode
 .env
+.secret
 venv
 log
 data
+src/script
 src/config/*.toml
 !src/config/main.sample.toml
