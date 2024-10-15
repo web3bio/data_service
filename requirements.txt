@@ -29,7 +29,6 @@ cycler==0.11.0
 cytoolz==0.12.3
 databricks-sql-connector==2.0.5
 DateTime==4.5
-dbt-core==1.2.1
 dbt-databricks==1.2.1
 dbt-extractor==0.4.1
 dbt-spark==1.2.0
@@ -63,7 +62,7 @@ hologram==0.0.15
 idna==3.8
 isodate==0.6.1
 itsdangerous==2.2.0
-Jinja2==3.1.4
+Jinja2==2.11.3
 jmespath==1.0.1
 jsonschema==4.23.0
 jsonschema-specifications==2023.12.1
@@ -108,7 +107,7 @@ python-slugify==6.1.2
 pytimeparse==1.1.8
 pytz==2022.1
 pyunormalize==15.1.0
-PyYAML==5.4.1
+PyYAML==5.3.1
 referencing==0.35.1
 regex==2024.7.24
 requests==2.32.3
