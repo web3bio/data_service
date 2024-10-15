@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 19:02:56
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-15 00:26:58
+LastEditTime: 2024-10-15 17:24:52
 FilePath: /data_service/src/app.py
 Description: main entry point
 '''
@@ -21,6 +21,7 @@ load_dotenv()
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, HTTPException
 from starlette.responses import JSONResponse
+from starlette.responses import HTMLResponse
 from strawberry.fastapi import GraphQLRouter
 from strawberry.schema.config import StrawberryConfig
 from strawberry.extensions import MaskErrors
@@ -46,6 +47,12 @@ schema = strawberry.Schema(
     ],
     
 )
+
+# def create_app():
+#     app = FastAPI()
+#     graphql_app = MyGraphQLRouter(schema)
+#     app.include_router(graphql_app, prefix="/graphql")
+#     return app
 
 
 def create_app():
