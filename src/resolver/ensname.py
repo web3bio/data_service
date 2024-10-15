@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:32:53
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 14:17:15
+LastEditTime: 2024-10-15 16:37:33
 FilePath: /data_service/src/resolver/ensname.py
 Description: 
 '''
@@ -176,7 +176,7 @@ async def query_profile_by_single_ensname(info, name):
         sql = select(EnsnameModel).options(load_only(*selected_fields)) \
             .filter(EnsnameModel.namenode == namenode)
         result = await s.execute(sql)
-        db_result = result.scalars().one()
+        db_result = result.scalars().one_or_none()
 
     if db_result is None:
         return None

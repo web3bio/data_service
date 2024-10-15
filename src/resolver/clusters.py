@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 14:10:05
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 17:26:02
+LastEditTime: 2024-10-15 16:38:18
 FilePath: /data_service/src/resolver/clusters.py
 Description: 
 '''
@@ -261,7 +261,7 @@ async def query_profile_by_single_clusters(info, query_str):
                     load_only(*selected_fields))\
                     .filter(and_(ClustersProfile.cluster_name == query_cluster_name, ClustersProfile.name == query_name))
                 profile_result = await s.execute(profile_sql)
-                one_profile_record = profile_result.scalars().one()
+                one_profile_record = profile_result.scalars().one_or_none()
                 if one_profile_record is not None:
                     name_profile_record = {key: value for key, value in one_profile_record.__dict__.items()}
         if name_profile_record is None:

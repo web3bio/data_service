@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-15 00:48:45
+LastEditTime: 2024-10-15 16:35:30
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -48,10 +48,11 @@ class RateLimitPermission(BasePermission):
         bearer_token = info.context["request"].headers.get("Authorization")
         # Remove "Bearer " prefix from the token if present
         token = None
-        if bearer_token.startswith("Bearer "):
-            token = bearer_token.split(" ")[1]  # Correctly remove 'Bearer ' prefix
-        else:
-            token = bearer_token  # If no 'Bearer ' prefix, use the token as is
+        if bearer_token is not None:
+            if bearer_token.startswith("Bearer "):
+                token = bearer_token.split(" ")[1]  # Correctly remove 'Bearer ' prefix
+            else:
+                token = bearer_token  # If no 'Bearer ' prefix, use the token as is
 
         client_ip = info.context["request"].client.host
         # If no token, apply stricter rate limiting

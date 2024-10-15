@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:41:34
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 14:17:22
+LastEditTime: 2024-10-15 16:38:21
 FilePath: /data_service/src/resolver/ethereum.py
 Description: 
 '''
@@ -181,7 +181,7 @@ async def query_profile_by_single_address(info, address):
         sql = select(EnsnameModel).options(load_only(*selected_fields)) \
             .filter(EnsnameModel.reverse_address == checked_address)
         result = await s.execute(sql)
-        db_result = result.scalars().one()
+        db_result = result.scalars().one_or_none()
 
     if db_result is None:
         return IdentityRecord(
