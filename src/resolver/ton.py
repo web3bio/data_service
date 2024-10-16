@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:25:22
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:28:22
+LastEditTime: 2024-10-16 16:30:46
 FilePath: /data_service/src/resolver/ton.py
 Description: 
 '''
@@ -34,8 +34,8 @@ async def query_profile_by_single_ton(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.ton.value},{address}",
         identity=address,
-        platform=Platform.ton.value,
-        network=Network.ton.value,
+        platform=Platform.ton,
+        network=Network.ton,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -52,8 +52,8 @@ async def query_profile_by_ton_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.ton.value},{addr}",
             identity=addr,
-            platform=Platform.ton.value,
-            network=Network.ton.value,
+            platform=Platform.ton,
+            network=Network.ton,
             primary_name=None,
             is_primary=False,
             profile=None

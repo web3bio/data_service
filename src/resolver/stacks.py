@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:25:11
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:27:47
+LastEditTime: 2024-10-16 16:30:33
 FilePath: /data_service/src/resolver/stacks.py
 Description: 
 '''
@@ -35,8 +35,8 @@ async def query_profile_by_single_stacks(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.stacks.value},{address}",
         identity=address,
-        platform=Platform.stacks.value,
-        network=Network.stacks.value,
+        platform=Platform.stacks,
+        network=Network.stacks,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -53,8 +53,8 @@ async def query_profile_by_stacks_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.stacks.value},{addr}",
             identity=addr,
-            platform=Platform.stacks.value,
-            network=Network.stacks.value,
+            platform=Platform.stacks,
+            network=Network.stacks,
             primary_name=None,
             is_primary=False,
             profile=None

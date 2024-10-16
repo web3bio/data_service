@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:24:59
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:25:52
+LastEditTime: 2024-10-16 16:22:33
 FilePath: /data_service/src/resolver/aptos.py
 Description: 
 '''
@@ -34,8 +34,8 @@ async def query_profile_by_single_aptos(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.aptos.value},{address}",
         identity=address,
-        platform=Platform.aptos.value,
-        network=Network.aptos.value,
+        platform=Platform.aptos,
+        network=Network.aptos,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -52,8 +52,8 @@ async def query_profile_by_aptos_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.aptos.value},{addr}",
             identity=addr,
-            platform=Platform.aptos.value,
-            network=Network.aptos.value,
+            platform=Platform.aptos,
+            network=Network.aptos,
             primary_name=None,
             is_primary=False,
             profile=None

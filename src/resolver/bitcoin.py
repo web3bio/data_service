@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:23:07
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:26:22
+LastEditTime: 2024-10-16 16:25:46
 FilePath: /data_service/src/resolver/bitcoin.py
 Description: 
 '''
@@ -34,8 +34,8 @@ async def query_profile_by_single_bitcoin(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.bitcoin.value},{address}",
         identity=address,
-        platform=Platform.bitcoin.value,
-        network=Network.bitcoin.value,
+        platform=Platform.bitcoin,
+        network=Network.bitcoin,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -52,8 +52,8 @@ async def query_profile_by_bitcoin_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.bitcoin.value},{addr}",
             identity=addr,
-            platform=Platform.bitcoin.value,
-            network=Network.bitcoin.value,
+            platform=Platform.bitcoin,
+            network=Network.bitcoin,
             primary_name=None,
             is_primary=False,
             profile=None

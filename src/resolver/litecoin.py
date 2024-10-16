@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:24:35
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:27:17
+LastEditTime: 2024-10-16 16:30:08
 FilePath: /data_service/src/resolver/litecoin.py
 Description: 
 '''
@@ -34,8 +34,8 @@ async def query_profile_by_single_litecoin(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.litecoin.value},{address}",
         identity=address,
-        platform=Platform.litecoin.value,
-        network=Network.litecoin.value,
+        platform=Platform.litecoin,
+        network=Network.litecoin,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -52,8 +52,8 @@ async def query_profile_by_litecoin_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.litecoin.value},{addr}",
             identity=addr,
-            platform=Platform.litecoin.value,
-            network=Network.litecoin.value,
+            platform=Platform.litecoin,
+            network=Network.litecoin,
             primary_name=None,
             is_primary=False,
             profile=None

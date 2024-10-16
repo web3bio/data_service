@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 23:11:29
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-08 20:52:39
+LastEditTime: 2024-10-16 16:30:20
 FilePath: /data_service/src/resolver/solana.py
 Description: 
 '''
@@ -33,8 +33,8 @@ async def query_profile_by_single_solana(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.solana.value},{address}",
         identity=address,
-        platform=Platform.solana.value,
-        network=Network.solana.value,
+        platform=Platform.solana,
+        network=Network.solana,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -53,8 +53,8 @@ async def query_profile_by_solana_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.solana.value},{addr}",
             identity=addr,
-            platform=Platform.solana.value,
-            network=Network.solana.value,
+            platform=Platform.solana,
+            network=Network.solana,
             primary_name=None,
             is_primary=False,
             profile=None

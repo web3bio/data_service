@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:25:17
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:28:35
+LastEditTime: 2024-10-16 16:30:53
 FilePath: /data_service/src/resolver/tron.py
 Description: 
 '''
@@ -35,8 +35,8 @@ async def query_profile_by_single_tron(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.tron.value},{address}",
         identity=address,
-        platform=Platform.tron.value,
-        network=Network.tron.value,
+        platform=Platform.tron,
+        network=Network.tron,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -53,8 +53,8 @@ async def query_profile_by_tron_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.tron.value},{addr}",
             identity=addr,
-            platform=Platform.tron.value,
-            network=Network.tron.value,
+            platform=Platform.tron,
+            network=Network.tron,
             primary_name=None,
             is_primary=False,
             profile=None

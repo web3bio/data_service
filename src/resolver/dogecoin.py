@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:24:51
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:26:46
+LastEditTime: 2024-10-16 16:26:24
 FilePath: /data_service/src/resolver/dogecoin.py
 Description: 
 '''
@@ -34,8 +34,8 @@ async def query_profile_by_single_dogecoin(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.dogecoin.value},{address}",
         identity=address,
-        platform=Platform.dogecoin.value,
-        network=Network.dogecoin.value,
+        platform=Platform.dogecoin,
+        network=Network.dogecoin,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -52,8 +52,8 @@ async def query_profile_by_dogecoin_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.dogecoin.value},{addr}",
             identity=addr,
-            platform=Platform.dogecoin.value,
-            network=Network.dogecoin.value,
+            platform=Platform.dogecoin,
+            network=Network.dogecoin,
             primary_name=None,
             is_primary=False,
             profile=None

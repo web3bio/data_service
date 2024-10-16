@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:41:34
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-15 16:38:21
+LastEditTime: 2024-10-16 16:23:03
 FilePath: /data_service/src/resolver/ethereum.py
 Description: 
 '''
@@ -187,8 +187,8 @@ async def query_profile_by_single_address(info, address):
         return IdentityRecord(
             id=f"{Platform.ethereum.value},{checked_address}",
             identity=checked_address,
-            platform=Platform.ethereum.value,
-            network=Network.ethereum.value,
+            platform=Platform.ethereum,
+            network=Network.ethereum,
             primary_name=None,
             is_primary=False,
             profile=None
@@ -278,8 +278,8 @@ async def query_profile_by_addresses(info, addresses):
             result.append(IdentityRecordSimplified(
                 id=f"{Platform.ethereum.value},{addr}",
                 identity=addr,
-                platform=Platform.ethereum.value,
-                network=Network.ethereum.value,
+                platform=Platform.ethereum,
+                network=Network.ethereum,
                 primary_name=None,
                 is_primary=False,
                 profile=None

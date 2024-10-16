@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:25:36
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:26:52
+LastEditTime: 2024-10-16 16:26:13
 FilePath: /data_service/src/resolver/cosmos.py
 Description: 
 '''
@@ -34,8 +34,8 @@ async def query_profile_by_single_cosmos(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.cosmos.value},{address}",
         identity=address,
-        platform=Platform.cosmos.value,
-        network=Network.cosmos.value,
+        platform=Platform.cosmos,
+        network=Network.cosmos,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -52,8 +52,8 @@ async def query_profile_by_cosmos_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.cosmos.value},{addr}",
             identity=addr,
-            platform=Platform.cosmos.value,
-            network=Network.cosmos.value,
+            platform=Platform.cosmos,
+            network=Network.cosmos,
             primary_name=None,
             is_primary=False,
             profile=None

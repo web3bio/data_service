@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:25:29
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:28:53
+LastEditTime: 2024-10-16 16:31:08
 FilePath: /data_service/src/resolver/xrpc.py
 Description: 
 '''
@@ -35,8 +35,8 @@ async def query_profile_by_single_xrpc(info, address):
     identity_record = IdentityRecord(
         id=f"{Platform.xrpc.value},{address}",
         identity=address,
-        platform=Platform.xrpc.value,
-        network=Network.xrpc.value,
+        platform=Platform.xrpc,
+        network=Network.xrpc,
         primary_name=None,
         is_primary=False,
         profile=None
@@ -53,8 +53,8 @@ async def query_profile_by_xrpc_addresses(info, addresses):
         result.append(IdentityRecordSimplified(
             id=f"{Platform.xrpc.value},{addr}",
             identity=addr,
-            platform=Platform.xrpc.value,
-            network=Network.xrpc.value,
+            platform=Platform.xrpc,
+            network=Network.xrpc,
             primary_name=None,
             is_primary=False,
             profile=None
