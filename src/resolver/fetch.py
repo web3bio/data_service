@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 19:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 16:35:29
+LastEditTime: 2024-10-21 15:33:33
 FilePath: /data_service/src/resolver/fetch.py
 Description: 
 '''
@@ -19,6 +19,7 @@ from resolver.farcaster import query_profile_by_fnames, query_profile_by_single_
 from resolver.lens import query_profile_by_lens_handle, query_profile_by_single_lens_handle
 from resolver.solana import query_profile_by_solana_addresses, query_profile_by_single_solana
 from resolver.clusters import query_profile_by_batch_clusters, query_profile_by_single_clusters
+from resolver.basenames import query_profile_by_basenames, query_profile_by_single_basenames
 
 from resolver.bitcoin import query_profile_by_bitcoin_addresses, query_profile_by_single_bitcoin
 from resolver.litecoin import query_profile_by_litecoin_addresses, query_profile_by_single_litecoin
@@ -45,6 +46,8 @@ async def batch_fetch(info, platform, identities):
         return await query_profile_by_solana_addresses(info, identities)
     elif platform == Platform.clusters:
         return await query_profile_by_batch_clusters(info, identities)
+    elif platform == Platform.basenames:
+        return await query_profile_by_basenames(info, identities)
     elif platform == Platform.bitcoin:
         return await query_profile_by_bitcoin_addresses(info, identities)
     elif platform == Platform.litecoin:
@@ -80,6 +83,8 @@ async def single_fetch(info, platform, identity):
         return await query_profile_by_single_solana(info, identity)
     elif platform == Platform.clusters:
         return await query_profile_by_single_clusters(info, identity)
+    elif platform == Platform.basenames:
+        return await query_profile_by_single_basenames(info, identity)
     elif platform == Platform.bitcoin:
         return await query_profile_by_single_bitcoin(info, identity)
     elif platform == Platform.litecoin:
@@ -123,6 +128,8 @@ async def batch_fetch_all(info, vertices_map):
             tasks.append(query_profile_by_solana_addresses(info, identities))
         elif platform_enum == Platform.clusters:
             tasks.append(query_profile_by_batch_clusters(info, identities))
+        elif platform_enum == Platform.basenames:
+            tasks.append(query_profile_by_basenames(info, identities))
         elif platform_enum == Platform.bitcoin:
             tasks.append(query_profile_by_bitcoin_addresses(info, identities))
         elif platform_enum == Platform.litecoin:

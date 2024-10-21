@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-15 16:35:30
+LastEditTime: 2024-10-21 15:36:12
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -26,8 +26,6 @@ from strawberry.permission import BasePermission
 
 from scalar import Domain
 from scalar.error import PlatformNotSupport
-from resolver import basename_domain_query
-from resolver.basename import query_basenames_by_owner, query_basenames_by_name
 
 import setting
 from cache.redis import RedisClient
@@ -192,27 +190,3 @@ class Query:
         # redis_value = await redis_client.get("some_key")
         logging.debug("Query by identities(platform=%s, identity=%s)", platform, json.dumps(identity))
         return await single_fetch(info, platform, identity)
-
-    # @strawberry.field
-    # async def domain(self, info: Info, platform: str, name: str) -> Domain:
-    #     """ Get domain by name """
-    #     logging.debug(f"Get domain by name {name}")
-    #     if platform == "basenames":
-    #         single_domain = await basename_domain_query(info, name)
-    #         return single_domain
-    #     else:
-    #         return PlatformNotSupport(platform)
-
-    # @strawberry.field
-    # async def domains(self, info: Info, platform: str, where: WhereFilter) -> List[Domain]:
-    #     if platform == "basenames":
-    #         if where.name is not None:
-    #             name = where.name.eq
-    #             domains = await query_basenames_by_name(info, name)
-    #             return domains
-    #         elif where.owner is not None:
-    #             owner = where.owner.eq
-    #             domains = await query_basenames_by_owner(info, owner)
-    #             return domains
-    #     else:
-    #         return PlatformNotSupport(platform)

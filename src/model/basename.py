@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-29 02:00:40
 LastEditors: Zella Zhong
-LastEditTime: 2024-08-29 23:22:11
+LastEditTime: 2024-10-21 14:41:55
 FilePath: /data_service/src/model/basename.py
 Description: 
 '''
@@ -43,9 +43,17 @@ class BasenameModel(Base):
     id: int = Column(Integer, primary_key=True, index=True)
     namenode: str = Column(String, unique=True, index=True)
     name: str = Column(String, index=True, nullable=True)
+    label_name: str = Column(String, index=True, nullable=True)
     label: str = Column(String, nullable=True)
     erc721_token_id: str = Column(String, nullable=True)
     parent_node: str = Column(String, nullable=True)
+
+    registration_time: DateTime = Column(DateTime, nullable=True)
+    registered_height: int = Column(Integer, nullable=True)
+    registered_hash: str = Column(String, nullable=True)
+
+    expire_time: DateTime = Column(DateTime, nullable=True)
+    grace_period_ends: DateTime = Column(DateTime, nullable=False)
 
     owner: str = Column(String, index=True, nullable=True)
     resolver: str = Column(String, nullable=True)
@@ -53,35 +61,7 @@ class BasenameModel(Base):
     reverse_address: str = Column(String, index=True, nullable=True)
     is_primary: bool = Column(Boolean)
 
-    # registration_time: int = Column(DatetimeToTimestamp, nullable=True)
-    # expire_time: int = Column(DatetimeToTimestamp, nullable=True)
-    # grace_period_ends: int = Column(DatetimeToTimestamp, nullable=True)
-    # update_time: int = Column(DatetimeToTimestamp, nullable=True)
-    registration_time: DateTime = Column(DateTime, nullable=False)
-    expire_time: DateTime = Column(DateTime, nullable=False)
-    grace_period_ends: DateTime = Column(DateTime, nullable=False)
-    update_time: DateTime = Column(DateTime, nullable=False)
-
-    resolved_records: dict = Column(JSON, nullable=True)
     contenthash: str = Column(String, nullable=True)
-    key_value: dict = Column(JSON, nullable=True)
-
-    def as_dict(self):
-        return {
-            "namenode": self.namenode,
-            "name": self.name,
-            "label": self.label,
-            "erc721_token_id": self.erc721_token_id,
-            "parent_node": self.parent_node,
-            "registration_time": self.registration_time,
-            "expire_time": self.expire_time,
-            "grace_period_ends": self.grace_period_ends,
-            "owner": self.owner,
-            "resolver": self.resolver,
-            "resolved_address": self.resolved_address,
-            "reverse_address": self.reverse_address,
-            "is_primary": self.is_primary,
-            "update_time": self.update_time,
-            "resolved_records": self.resolved_records,
-            "key_value": self.key_value,
-        }
+    update_time: DateTime = Column(DateTime, nullable=False)
+    texts: dict = Column(JSON, nullable=True)
+    resolved_records: dict = Column(JSON, nullable=True)

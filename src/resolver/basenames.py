@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 '''
 Author: Zella Zhong
-Date: 2024-10-06 18:32:53
+Date: 2024-09-06 15:40:40
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-21 14:52:16
-FilePath: /data_service/src/resolver/ensname.py
+LastEditTime: 2024-10-21 15:28:04
+FilePath: /data_service/src/resolver/basename.py
 Description: 
 '''
 import logging
@@ -16,7 +16,7 @@ from sqlalchemy.orm import load_only
 from urllib.parse import unquote
 
 from session import get_session
-from model import EnsnameModel
+from model import BasenameModel
 
 from utils import check_evm_address, convert_camel_case, compute_namehash_nowrapped
 
@@ -26,6 +26,7 @@ from scalar.identity_graph import IdentityRecordSimplified
 from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile
 from scalar.error import DomainNotFound, EmptyInput, EvmAddressInvalid, ExceedRangeInput
+
 
 QUERY_MAX_LIMIT = 200
 
@@ -48,10 +49,10 @@ def get_selected_fields(field_name: str, selected_fields):
     return None  # Explicitly return None if the field is not found
 
 
-def get_profile_selected_fields(db_baseclass_name, info):
+def get_basenames_selected_fields(db_baseclass_name, info):
     attr_names = [c_attr.key for c_attr in inspect(db_baseclass_name).mapper.column_attrs]
     # Extract selected fields from the `info` object
-    base_selected_fields = ["namenode", "name", "is_wrapped", "wrapped_owner", "owner", "resolved_address", "is_primary", "reverse_address"]
+    base_selected_fields = ["namenode", "name", "owner", "resolved_address", "is_primary", "reverse_address"]
     filter_selected_fields = []
     filter_selected_fields.extend(base_selected_fields)
     info_selected_fields = info.selected_fields[0].selections
@@ -62,7 +63,7 @@ def get_profile_selected_fields(db_baseclass_name, info):
             case "id":
                 continue
             case "identity":
-                continue
+                filter_selected_fields.append("name")
             case "platform":
                 continue
             case "network":
@@ -75,8 +76,6 @@ def get_profile_selected_fields(db_baseclass_name, info):
                 filter_selected_fields.append("resolved_address")
             case "owner_address":
                 filter_selected_fields.append("owner")
-                filter_selected_fields.append("is_wrapped")
-                filter_selected_fields.append("wrapped_owner")
             case "expired_at":
                 filter_selected_fields.append("expire_time")
             case "profile":
@@ -117,7 +116,7 @@ def get_profile_selected_fields(db_baseclass_name, info):
                             case "id":
                                 continue
                             case "identity":
-                                continue
+                                filter_selected_fields.append("name")
                             case "platform":
                                 continue
                             case "network":
@@ -130,8 +129,6 @@ def get_profile_selected_fields(db_baseclass_name, info):
                                 filter_selected_fields.append("resolved_address")
                             case "owner_address":
                                 filter_selected_fields.append("owner")
-                                filter_selected_fields.append("is_wrapped")
-                                filter_selected_fields.append("wrapped_owner")
                             case "expired_at":
                                 filter_selected_fields.append("expire_time")
                             case "profile":
@@ -169,11 +166,15 @@ def get_profile_selected_fields(db_baseclass_name, info):
     return match_selected_fields
 
 
-async def query_profile_by_single_ensname(info, name):
-    selected_fields = get_profile_selected_fields(EnsnameModel, info)
+async def query_profile_by_single_basenames(info, name):
+    if not name.endswith('base.eth'):
+        return None
+
+    selected_fields = get_basenames_selected_fields(BasenameModel, info)
+
     async with get_session() as s:
-        sql = select(EnsnameModel).options(load_only(*selected_fields)) \
-            .filter(EnsnameModel.name == name)
+        sql = select(BasenameModel).options(load_only(*selected_fields)) \
+            .filter(BasenameModel.name == name)
         result = await s.execute(sql)
         db_result = result.scalars().one_or_none()
 
@@ -188,14 +189,10 @@ async def query_profile_by_single_ensname(info, name):
     resolved_addresses = []
     owner_addresses = []
     owner = profile_record.get('owner', None)
-    is_wrapped = profile_record.get('is_wrapped', False)
-    if is_wrapped:
-        wrapped_owner = profile_record.get('wrapped_owner', None)
-        owner = wrapped_owner
 
     if owner is not None:
         owner_addresses.append(Address(network=Network.ethereum, address=owner))
-
+    
     network = None
     address = None
     resolved_address = profile_record.get('resolved_address', None)
@@ -206,7 +203,7 @@ async def query_profile_by_single_ensname(info, name):
     else:
         address = owner
         network = Network.ethereum
-
+    
     display_name = name
     avatar = None
     description = None
@@ -218,7 +215,7 @@ async def query_profile_by_single_ensname(info, name):
         display_name = texts.get("name", name)
     else:
         texts = None
-
+    
     resolved_records = profile_record.get('resolved_records', {})
     records = []
     if resolved_records:
@@ -241,6 +238,7 @@ async def query_profile_by_single_ensname(info, name):
         addresses=records,
         social=None
     )
+
     identity_record = IdentityRecord(
         id=f"{Platform.ens.value},{name}",
         identity=name,
@@ -255,23 +253,22 @@ async def query_profile_by_single_ensname(info, name):
     )
     return identity_record
 
-async def query_profile_by_ensnames(info, names):
-    # if len(names) == 0:
-    #     return EmptyInput()
+
+async def query_profile_by_basenames(info, names):
     if len(names) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
 
     logging.debug("query_profile_by_ensnames %s", names)
     checked_names = []
     for name in names:
-        if name.find('.') != -1:
-            checked_names.append(name)
+        if name.endswith("base.eth"):
+            checked_names.append(compute_namehash_nowrapped(name))
 
-    selected_fields = get_profile_selected_fields(EnsnameModel, info)
+    selected_fields = get_basenames_selected_fields(BasenameModel, info)
     db_dict = {}
     async with get_session() as s:
-        sql = select(EnsnameModel).options(load_only(*selected_fields)) \
-            .filter(EnsnameModel.name.in_(checked_names))
+        sql = select(BasenameModel).options(load_only(*selected_fields)) \
+            .filter(BasenameModel.name.in_(checked_names))
         result = await s.execute(sql)
         db_records = result.scalars().all()
         for row in db_records:
@@ -287,10 +284,6 @@ async def query_profile_by_ensnames(info, names):
             resolved_addresses = []
             owner_addresses = []
             owner = profile_record.get('owner', None)
-            is_wrapped = profile_record.get('is_wrapped', False)
-            if is_wrapped:
-                wrapped_owner = profile_record.get('wrapped_owner', None)
-                owner = wrapped_owner
             if owner is not None:
                 owner_addresses.append(Address(network=Network.ethereum, address=owner))
 
@@ -352,5 +345,4 @@ async def query_profile_by_ensnames(info, names):
                 expired_at=profile_record.get('expire_time', None),
                 profile=profile
             ))
-
     return result
