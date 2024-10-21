@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:59:57
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-16 15:46:55
+LastEditTime: 2024-10-21 15:41:30
 FilePath: /data_service/src/scalar/identity_record.py
 Description: 
 '''
@@ -41,6 +41,4 @@ class IdentityRecord:
     async def identity_graph(self, info: Info) -> typing.Optional[IdentityGraph]:
         from resolver.identity_graph import find_identity_graph
         logging.debug("Querying for identityGraph for identity: %s", self.identity)
-        print(self.platform)
-        print(type(self.platform))
         return await find_identity_graph(info, self.platform.value, self.identity)

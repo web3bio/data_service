@@ -4,8 +4,8 @@
 Author: Zella Zhong
 Date: 2024-09-06 15:40:40
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-21 15:28:04
-FilePath: /data_service/src/resolver/basename.py
+LastEditTime: 2024-10-21 15:47:46
+FilePath: /data_service/src/resolver/basenames.py
 Description: 
 '''
 import logging
@@ -227,7 +227,7 @@ async def query_profile_by_single_basenames(info, name):
     profile = Profile(
         uid=None,
         identity=name,
-        platform=Platform.ens,
+        platform=Platform.basenames,
         network=network,
         address=address,
         display_name=display_name,
@@ -240,9 +240,9 @@ async def query_profile_by_single_basenames(info, name):
     )
 
     identity_record = IdentityRecord(
-        id=f"{Platform.ens.value},{name}",
+        id=f"{Platform.basenames.value},{name}",
         identity=name,
-        platform=Platform.ens,
+        platform=Platform.basenames,
         network=Network.ethereum,
         primary_name=None,
         is_primary=profile_record.get('is_primary', False),
@@ -258,11 +258,11 @@ async def query_profile_by_basenames(info, names):
     if len(names) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
 
-    logging.debug("query_profile_by_ensnames %s", names)
+    logging.debug("query_profile_by_basenames %s", names)
     checked_names = []
     for name in names:
         if name.endswith("base.eth"):
-            checked_names.append(compute_namehash_nowrapped(name))
+            checked_names.append(name)
 
     selected_fields = get_basenames_selected_fields(BasenameModel, info)
     db_dict = {}
@@ -321,7 +321,7 @@ async def query_profile_by_basenames(info, names):
             profile = Profile(
                 uid=None,
                 identity=name,
-                platform=Platform.ens,
+                platform=Platform.basenames,
                 network=network,
                 address=address,
                 display_name=display_name,
@@ -334,9 +334,9 @@ async def query_profile_by_basenames(info, names):
             )
 
             result.append(IdentityRecordSimplified(
-                id=f"{Platform.ens.value},{name}",
+                id=f"{Platform.basenames.value},{name}",
                 identity=name,
-                platform=Platform.ens,
+                platform=Platform.basenames,
                 network=Network.ethereum,
                 primary_name=None,
                 owner_address=owner_addresses,
