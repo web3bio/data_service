@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-25 19:44:32
+LastEditTime: 2024-10-25 22:22:04
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -45,7 +45,7 @@ class RateLimitPermission(BasePermission):
         # Global Redis instance
         redis_client = await RedisClient.get_instance()
         bearer_token = info.context["request"].headers.get("Authorization")
-        logging.debug("RateLimitPermission bearer_token %s", bearer_token)
+
         # Remove "Bearer " prefix from the token if present
         token = None
         if bearer_token is not None:
@@ -54,7 +54,6 @@ class RateLimitPermission(BasePermission):
             else:
                 token = bearer_token  # If no 'Bearer ' prefix, use the token as is
 
-        logging.debug("RateLimitPermission after process %s", token)
         client_ip = info.context["request"].client.host
         # If no token, apply stricter rate limiting
         if not token:
@@ -166,7 +165,7 @@ class Query:
     async def identities(self, info: Info, ids: List[str]) -> List[IdentityRecordSimplified]:
         # only select profile, ignore identity_graph
         logging.debug("Query by identities batch fetch(identities=%s)", json.dumps(ids))
-        vertices_setmap = {}
+        vertices_map = {}
         for row in ids:
             item = row.split(",")
             if len(item) < 2:
@@ -177,14 +176,12 @@ class Query:
             if _platform not in Platform.__members__:
                 continue
 
-            if _platform not in vertices_setmap:
-                vertices_setmap[_platform] = set()
+            if _platform not in vertices_map:
+                vertices_map[_platform] = []
 
-            vertices_setmap[_platform].add(_identity)
+            # vertices_map[_platform].append(_identity)
+            vertices_map[_platform].append(row)
 
-        vertices_map = {}
-        for k, v in vertices_setmap.items():
-            vertices_map[k] = list(v)
         result = await batch_fetch_all(info, vertices_map)
         return result
 

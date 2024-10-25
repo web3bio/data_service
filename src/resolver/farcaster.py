@@ -4,17 +4,21 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-25 19:18:05
+LastEditTime: 2024-10-25 22:20:09
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
+import asyncio
+import copy
+import json
 import random
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.inspection import inspect
 from sqlalchemy import select, update, and_, or_
 from sqlalchemy.orm import load_only
 from urllib.parse import unquote
+from pydantic import typing
 
 from session import get_session
 from model.farcaster import FarcasterProfile, FarcasterVerified, FarcasterSocial, FarcasterFnames
@@ -22,7 +26,7 @@ from cache.redis import RedisClient
 
 from utils import convert_camel_case
 from utils.address import is_ethereum_address, is_base58_solana_address
-from utils.timeutils import get_unix_microseconds
+from utils.timeutils import get_unix_microseconds, parse_time_string, get_current_time_string
 
 from scalar.platform import Platform
 from scalar.network import Network, Address, CoinTypeMap
@@ -438,15 +442,106 @@ def get_farcaster_fields():
 
     return profile_fields, verified_fields, social_fields
 
+def convert_cache_to_identity_record(cache_value):
+    try:
+        if not cache_value:
+            return None
+        primary_id = cache_value.get('id', None)
+        if primary_id is None:
+            return None
 
-async def get_fids_by_input(ids):
+        # Convert resolved_address list of dictionaries to list of Address instances
+        resolved_address = [Address(**address) for address in cache_value.get("resolved_address", [])]
+
+        # Convert owner_address list of dictionaries to list of Address instances
+        owner_address = [Address(**address) for address in cache_value.get("owner_address", [])]
+
+        platform_str = cache_value.get("platform", None)
+        platform = Platform(platform_str) if platform_str else None
+
+        network_str = cache_value.get("network", None)
+        network = Network(network_str) if network_str else None
+
+        # Convert profile dictionary to Profile instance
+        profile_data = cache_value.get("profile", None)
+        profile = None
+        if profile_data:
+            addresses = [Address(**addr) for addr in profile_data.get("addresses", [])]
+            profile_platform_str = profile_data.get("platform", None)
+            profile_platform = Platform(profile_platform_str) if profile_platform_str else None
+
+            profile_network_str = profile_data.get("network", None)
+            profile_network = Network(profile_network_str) if profile_network_str else None
+            social_dict = profile_data.get("social", None)
+            social = None
+            if social_dict is not None:
+                social_updated_at_str = social_dict.get("updated_at", None)
+                social_updated_at = None
+                if social_updated_at_str is not None:
+                    social_updated_at = datetime.strptime(social_updated_at_str, "%Y-%m-%d %H:%M:%S") if social_updated_at_str else None
+                social = SocialProfile(
+                    uid=social_dict.get("uid", None),
+                    following=social_dict.get("following", 0),
+                    follower=social_dict.get("follower", 0),
+                    update_at=social_updated_at,
+                )
+            profile = Profile(
+                uid=profile_data.get("uid"),
+                identity=profile_data.get("identity"),
+                platform=profile_platform,
+                network=profile_network,
+                address=profile_data.get("address"),
+                display_name=profile_data.get("display_name"),
+                avatar=profile_data.get("avatar"),
+                description=profile_data.get("description"),
+                contenthash=profile_data.get("contenthash"),
+                texts=profile_data.get("texts", {}),
+                addresses=addresses,
+                social=social,
+            )
+        
+        expired_at_str = cache_value.get("expired_at")
+        updated_at_str = cache_value.get("updated_at")
+
+        expired_at = datetime.strptime(expired_at_str, "%Y-%m-%d %H:%M:%S") if expired_at_str else None
+        updated_at = datetime.strptime(updated_at_str, "%Y-%m-%d %H:%M:%S") if updated_at_str else None
+
+        # Return the IdentityRecord instance
+        return IdentityRecord(
+            id=cache_value.get("id"),
+            aliases=cache_value.get("aliases"),
+            identity=cache_value.get("identity"),
+            platform=platform,
+            network=network,
+            primary_name=cache_value.get("primary_name"),
+            is_primary=cache_value.get("is_primary"),
+            resolved_address=resolved_address,
+            owner_address=owner_address,
+            expired_at=expired_at,
+            updated_at=updated_at,
+            profile=profile,
+        )
+
+    except Exception as ex:
+        logging.exception(ex)
+        return None
+
+async def get_fids_by_input(query_ids):
+    # logging.debug("get_fids_by_input query_ids: %s" % query_ids)
     final_fids = set()
     fnames = []
     verified_addresses = []
-    for query_id in ids:
+    for _id in query_ids:
+        item = _id.split(",")
+        if len(item) < 2:
+            continue
+        if item[0] != Platform.farcaster.value:
+            continue
+
+        query_id = item[1]
         if query_id.startswith('#'):
             try:
-                query_fid = query_id.lstrip('#')
+                query_fid = query_id.removeprefix('#')
                 final_fids.add(int(query_fid))
             except:
                 continue
@@ -508,15 +603,134 @@ async def get_farcaster_profile_from_cache(query_ids, expire_window):
     }
     '''
     try:
+        require_update_ids = []
+        missing_query_ids = []
+        cache_identity_records = []
         redis_client = await RedisClient.get_instance()
-        aliases_value = await redis_client.mget(*query_ids)
+
+        aliases_keys = []
+        for query_id in query_ids:
+            aliases_keys.append(f"aliases:{query_id}")
+        aliases_keys = list(set(aliases_keys))
+        aliases_values = await redis_client.mget(*aliases_keys)
+        aliases_cache_item = dict(zip(aliases_keys, aliases_values))
+
+        profile_map_aliases_key = {}
+        for alias_cache_key_bytes, profile_cache_key_bytes in aliases_cache_item.items():
+            alias_cache_key = alias_cache_key_bytes.decode("utf-8") if isinstance(alias_cache_key_bytes, bytes) else alias_cache_key_bytes
+            profile_cache_key = profile_cache_key_bytes.decode("utf-8") if profile_cache_key_bytes is not None else None
+
+            logging.debug(f"{alias_cache_key}: {profile_cache_key}")
+            if profile_cache_key is None:
+                missing_query_ids.append(alias_cache_key.removeprefix("aliases:"))
+            else:
+                if profile_cache_key not in profile_map_aliases_key:
+                    profile_map_aliases_key[profile_cache_key] = []
+                profile_map_aliases_key[profile_cache_key].append(alias_cache_key.removeprefix("aliases:"))
+
+        profile_cache_keys = list(profile_map_aliases_key.keys())
+        if profile_cache_keys:
+            profile_json_values = await redis_client.mget(*profile_cache_keys)
+            profile_cache_json_values = dict(zip(profile_cache_keys, profile_json_values))
+            for profile_cache_key_bytes, profile_json_value_bytes in profile_cache_json_values.items():
+                profile_cache_key = profile_cache_key_bytes.decode("utf-8") if isinstance(profile_cache_key_bytes, bytes) else profile_cache_key_bytes
+                profile_json_value = profile_json_value_bytes.decode("utf-8") if profile_json_value_bytes is not None else None
+
+                if profile_json_value is None:
+                    # add aliases:platform,alias_value to missing_query_ids
+                    missing_query_ids.append(profile_cache_key.removeprefix("profile:"))
+                    missing_aliases_ids = profile_map_aliases_key.get(profile_cache_key, [])
+                    missing_query_ids.extend(missing_aliases_ids)
+                else:
+                    profile_value_dict = json.loads(profile_json_value)
+                    updated_at = profile_value_dict.get("updated_at", None)
+                    if not updated_at:
+                        logging.warning(f"Cache key {profile_cache_key} is missing 'updated_at'. Marking for update.")
+                        missing_query_ids.append(profile_cache_key.removeprefix("profile:"))
+                    else:
+                        updated_at_datetime = parse_time_string(updated_at)
+                        now = datetime.now()
+                        # Compare now and updated_at, if value is expired in window
+                        if now - updated_at_datetime > timedelta(seconds=expire_window):
+                            
+                            if len(profile_value_dict) == 1:
+                                # only have one field(updated_at) is also not exist
+                                logging.debug(f"Cache key {profile_cache_key} is empty. Returning old data, but marking for update.")
+                                require_update_ids.append(profile_cache_key.removeprefix("profile:"))
+                            else:
+                                # Old data is returned, but it needs to be updated
+                                logging.debug(f"Cache key {profile_cache_key} is expired. Returning old data, but marking for update.")
+                                require_update_ids.append(profile_cache_key.removeprefix("profile:"))
+                                cache_identity_records.append(
+                                    convert_cache_to_identity_record(profile_value_dict)
+                                )
+                        else:
+                            if len(profile_value_dict) == 1:
+                                # only have one field(updated_at) is also not exist
+                                logging.debug(f"Cache key {profile_cache_key} is empty but has been caching.")
+                            else:
+                                logging.debug(f"Cache key {profile_cache_key} has been caching.")
+                                cache_identity_records.append(convert_cache_to_identity_record(profile_value_dict))
+
+        return cache_identity_records, require_update_ids, missing_query_ids
     except Exception as ex:
         logging.exception(ex)
         # if cache logic is failed, just return query_from_db immediately
         return [], [], query_ids
 
+async def set_farcaster_empty_profile_to_cache(query_id, empty_record, expire_window):
+    random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
+    # random_offset = 0
+    final_expire_window = expire_window + random_offset
+
+    profile_cache_key = f"profile:{query_id}"  # e.g. profile:farcaster,#1111111 which is not exist
+    profile_lock_key = f"{query_id}.lock"
+
+    profile_unique_value = "{}:{}".format(profile_lock_key, get_unix_microseconds())
+    try:
+        # Try acquiring the lock (with a timeout of 30 seconds)
+        if await RedisClient.acquire_lock(profile_lock_key, profile_unique_value, lock_timeout=30):
+            logging.debug(f"Lock acquired for key: {profile_lock_key}")
+            # Set the current time as 'updated_at' in "yyyy-mm-dd HH:MM:SS" format
+            empty_record["updated_at"] = get_current_time_string()
+            profile_value_json = json.dumps(empty_record)
+
+            # Set the cache in Redis with the specified expiration time (in seconds)
+            redis_client = await RedisClient.get_instance()
+            await redis_client.set(profile_cache_key, profile_value_json, ex=final_expire_window)
+            logging.debug(f"Cache updated for key: {profile_cache_key}")
+        else:
+            logging.warning(f"Could not acquire lock for key: {profile_lock_key}")
+
+    finally:
+        # Always release the lock after the critical section is done
+        await RedisClient.release_lock(profile_lock_key, profile_unique_value)
+        logging.debug(f"Lock released for key: {profile_lock_key}")
+    
+
+    aliases_lock_key = f"aliases:{query_id}.lock"
+    aliases_unique_value = "{}:{}".format(aliases_lock_key, get_unix_microseconds())
+    try:
+        # Try acquiring the lock (with a timeout of 30 seconds)
+        if await RedisClient.acquire_lock(aliases_lock_key, aliases_unique_value, lock_timeout=30):
+            logging.debug(f"Lock acquired for key: {aliases_lock_key}")
+            redis_client = await RedisClient.get_instance()
+            # Save the empty query_id to [profile_key], and profile_key only have updated_at
+            alias_cache_key = f"aliases:{query_id}"
+            await redis_client.set(alias_cache_key, profile_cache_key, ex=final_expire_window)
+            logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
+        else:
+            logging.warning(f"Could not acquire lock for key: {aliases_lock_key}")
+
+    finally:
+        # Always release the lock after the critical section is done
+        await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
+        logging.debug(f"Lock released for key: {aliases_lock_key}")
+
+
 async def set_farcaster_profile_to_cache(cache_identity_record: IdentityRecordSimplified, expire_window):
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
+    # random_offset = 0
     final_expire_window = expire_window + random_offset
 
     primary_id = cache_identity_record.id
@@ -567,8 +781,7 @@ async def set_farcaster_profile_to_cache(cache_identity_record: IdentityRecordSi
         await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
         logging.debug(f"Lock released for key: {aliases_lock_key}")
 
-
-async def batch_query_profile_by_fids_db(fids):
+async def batch_query_profile_by_fids_db(fids) -> typing.List[IdentityRecordSimplified]:
     # No need to select fields anymore, just query all fields
     profile_fields,\
     verified_fields,\
@@ -682,20 +895,54 @@ async def batch_query_profile_by_fids_db(fids):
 
     return result
 
+async def query_and_update_missing_query_ids(query_ids):
+    fids = await get_fids_by_input(query_ids)
+    logging.debug("query_and_update_missing_query_ids input %s turn to fids: %s", query_ids, fids)
+    identity_records = await batch_query_profile_by_fids_db(fids)
+    # need cache where query_id is not in storage to avoid frequency access db
 
-async def batch_query_profile_by_ids_cache(info, ids, require_cache=False):
-    if len(ids) > QUERY_MAX_LIMIT:
+    exists_query_ids = []
+    for record in identity_records:
+        exists_query_ids.extend(record.aliases)
+        asyncio.create_task(set_farcaster_profile_to_cache(record, expire_window=24*3600))
+
+    empty_query_ids = list(set(query_ids) - set(exists_query_ids))
+    for empty_query_id in empty_query_ids:
+        asyncio.create_task(set_farcaster_empty_profile_to_cache(empty_query_id, {}, expire_window=60))
+
+    return identity_records
+
+async def batch_query_profile_by_ids_cache(info, query_ids, require_cache=False):
+    if len(query_ids) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
 
     identity_records = []
     if require_cache is False:
         # query data from db and return immediately
-        fids = await get_fids_by_input(ids)
-        logging.debug("batch_query_profile_by_ids_cache input %s turn to fids: %s", ids, fids)
+        fids = await get_fids_by_input(query_ids)
+        logging.debug("batch_query_profile_by_ids_cache input %s turn to fids: %s", query_ids, fids)
         identity_records = await batch_query_profile_by_fids_db(fids)
         return identity_records
 
     # require_cache is True:
-    # fids = await get_fids_by_input(ids)
-    # logging.debug("batch_query_profile_by_ids_cache input %s turn to fids: %s", ids, fids)
+    cache_identity_records, \
+    require_update_ids, \
+    missing_query_ids = await get_farcaster_profile_from_cache(query_ids, expire_window=12*3600)
 
+    logging.debug("batch_query_profile_by_ids_cache input query_ids: {}".format(query_ids))
+    logging.debug("batch_query_profile_by_ids_cache missing_query_ids: {}".format(missing_query_ids))
+    logging.debug("batch_query_profile_by_ids_cache require_update_ids: {}".format(require_update_ids))
+    logging.debug("batch_query_profile_by_ids_cache cache_identity_records: {}".format(len(cache_identity_records)))
+
+    final_identity_records = cache_identity_records.copy()
+    if missing_query_ids:
+        logging.info("missing data")
+        missing_identity_records = await query_and_update_missing_query_ids(missing_query_ids)
+        final_identity_records.extend(missing_identity_records)
+
+    if require_update_ids:
+        logging.info("has olddata and return immediately")
+        # Update background
+        asyncio.create_task(query_and_update_missing_query_ids(require_update_ids))
+
+    return final_identity_records
