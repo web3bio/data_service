@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-25 22:20:09
+LastEditTime: 2024-10-26 00:05:14
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
@@ -592,7 +592,6 @@ async def get_fids_by_input(query_ids):
 
     return list(final_fids)
 
-
 async def get_farcaster_profile_from_cache(query_ids, expire_window):
     '''
     description: 
@@ -727,7 +726,6 @@ async def set_farcaster_empty_profile_to_cache(query_id, empty_record, expire_wi
         await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
         logging.debug(f"Lock released for key: {aliases_lock_key}")
 
-
 async def set_farcaster_profile_to_cache(cache_identity_record: IdentityRecordSimplified, expire_window):
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
     # random_offset = 0
@@ -803,9 +801,10 @@ async def batch_query_profile_by_fids_db(fids) -> typing.List[IdentityRecordSimp
                 result_fids.append(row.fid)
                 profile_dict[row.fid] = row
 
+        if result_fids:
             verified_sql = select(FarcasterVerified).options(
                 load_only(*verified_fields))\
-                .filter(FarcasterVerified.fid.in_(fids))
+                .filter(FarcasterVerified.fid.in_(result_fids))
             verified_result = await s.execute(verified_sql)
             verified_records = verified_result.scalars().all()
             for row in verified_records:
@@ -815,7 +814,7 @@ async def batch_query_profile_by_fids_db(fids) -> typing.List[IdentityRecordSimp
 
             social_sql = select(FarcasterSocial).options(
                 load_only(*social_fields))\
-                .filter(FarcasterSocial.fid.in_(fids))
+                .filter(FarcasterSocial.fid.in_(result_fids))
             social_result = await s.execute(social_sql)
             social_records = social_result.scalars().all()
             for row in social_records:
@@ -912,7 +911,7 @@ async def query_and_update_missing_query_ids(query_ids):
 
     return identity_records
 
-async def batch_query_profile_by_ids_cache(info, query_ids, require_cache=False):
+async def query_farcaster_profile_by_ids_cache(info, query_ids, require_cache=False):
     if len(query_ids) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
 
@@ -920,7 +919,7 @@ async def batch_query_profile_by_ids_cache(info, query_ids, require_cache=False)
     if require_cache is False:
         # query data from db and return immediately
         fids = await get_fids_by_input(query_ids)
-        logging.debug("batch_query_profile_by_ids_cache input %s turn to fids: %s", query_ids, fids)
+        logging.debug("query_farcaster_profile_by_ids_cache input %s turn to fids: %s", query_ids, fids)
         identity_records = await batch_query_profile_by_fids_db(fids)
         return identity_records
 
@@ -929,10 +928,10 @@ async def batch_query_profile_by_ids_cache(info, query_ids, require_cache=False)
     require_update_ids, \
     missing_query_ids = await get_farcaster_profile_from_cache(query_ids, expire_window=12*3600)
 
-    logging.debug("batch_query_profile_by_ids_cache input query_ids: {}".format(query_ids))
-    logging.debug("batch_query_profile_by_ids_cache missing_query_ids: {}".format(missing_query_ids))
-    logging.debug("batch_query_profile_by_ids_cache require_update_ids: {}".format(require_update_ids))
-    logging.debug("batch_query_profile_by_ids_cache cache_identity_records: {}".format(len(cache_identity_records)))
+    logging.debug("query_farcaster_profile_by_ids_cache input query_ids: {}".format(query_ids))
+    logging.debug("query_farcaster_profile_by_ids_cache missing_query_ids: {}".format(missing_query_ids))
+    logging.debug("query_farcaster_profile_by_ids_cache require_update_ids: {}".format(require_update_ids))
+    logging.debug("query_farcaster_profile_by_ids_cache cache_identity_records: {}".format(len(cache_identity_records)))
 
     final_identity_records = cache_identity_records.copy()
     if missing_query_ids:

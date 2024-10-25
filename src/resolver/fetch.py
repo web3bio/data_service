@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 19:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-25 22:18:55
+LastEditTime: 2024-10-26 00:16:49
 FilePath: /data_service/src/resolver/fetch.py
 Description: 
 '''
@@ -33,7 +33,8 @@ from resolver.xrpc import query_profile_by_xrpc_addresses, query_profile_by_sing
 from resolver.cosmos import query_profile_by_cosmos_addresses, query_profile_by_single_cosmos
 
 
-from resolver.farcaster import batch_query_profile_by_ids_cache
+from resolver.farcaster import query_farcaster_profile_by_ids_cache
+from resolver.lens import query_lens_profile_by_ids_cache
 
 
 async def batch_fetch(info, platform, identities):
@@ -184,9 +185,10 @@ async def batch_fetch_all(info, vertices_map):
             tasks.append(query_profile_by_ensnames(info, query_ids))
         elif platform_enum == Platform.farcaster:
             # tasks.append(query_profile_by_fnames(info, query_ids))
-            tasks.append(batch_query_profile_by_ids_cache(info, query_ids, require_cache=True))
+            tasks.append(query_farcaster_profile_by_ids_cache(info, query_ids, require_cache=True))
         elif platform_enum == Platform.lens:
-            tasks.append(query_profile_by_lens_handle(info, query_ids))
+            # tasks.append(query_profile_by_lens_handle(info, query_ids))
+            tasks.append(query_lens_profile_by_ids_cache(info, query_ids, require_cache=True))
         elif platform_enum == Platform.solana:
             tasks.append(query_profile_by_solana_addresses(info, query_ids))
         elif platform_enum == Platform.clusters:
