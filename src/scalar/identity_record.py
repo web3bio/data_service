@@ -4,13 +4,15 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:59:57
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-21 15:41:30
+LastEditTime: 2024-10-24 23:42:49
 FilePath: /data_service/src/scalar/identity_record.py
 Description: 
 '''
+import json
 import logging
 import strawberry
 
+from enum import Enum
 from datetime import datetime, timedelta
 from pydantic import Field, typing
 from strawberry.scalars import JSON
@@ -35,6 +37,7 @@ class IdentityRecord:
     resolved_address: typing.List[Address] = strawberry.field(default_factory=list)
     owner_address: typing.List[Address] = strawberry.field(default_factory=list)
     expired_at: typing.Optional[datetime] = None
+    updated_at: typing.Optional[datetime] = None
     profile: typing.Optional[Profile] = None
 
     @strawberry.field
