@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-21 15:36:12
+LastEditTime: 2024-10-25 19:44:32
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -14,9 +14,10 @@ import json
 import logging
 import strawberry
 
+from jwt.exceptions import ExpiredSignatureError, DecodeError, InvalidTokenError
 from pydantic import typing
 from typing import Annotated, Union
-from typing import Optional, List, TypeVar, Generic
+from typing import Optional, List, TypeVar, Generic, Mapping
 from fastapi import HTTPException
 
 from strawberry.types import Info
@@ -44,6 +45,7 @@ class RateLimitPermission(BasePermission):
         # Global Redis instance
         redis_client = await RedisClient.get_instance()
         bearer_token = info.context["request"].headers.get("Authorization")
+        logging.debug("RateLimitPermission bearer_token %s", bearer_token)
         # Remove "Bearer " prefix from the token if present
         token = None
         if bearer_token is not None:
@@ -52,6 +54,7 @@ class RateLimitPermission(BasePermission):
             else:
                 token = bearer_token  # If no 'Bearer ' prefix, use the token as is
 
+        logging.debug("RateLimitPermission after process %s", token)
         client_ip = info.context["request"].client.host
         # If no token, apply stricter rate limiting
         if not token:
@@ -109,6 +112,7 @@ class RateLimitPermission(BasePermission):
     async def validate_token(self, token):
         try:
             # Validate the token
+            logging.debug("setting.AUTHENTICATE[secret] %s", setting.AUTHENTICATE["secret"])
             payload = jwt.decode(token, setting.AUTHENTICATE["secret"], algorithms=['HS256'])
             return True  # Token is valid
         except jwt.ExpiredSignatureError:

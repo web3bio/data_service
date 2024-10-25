@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 19:02:56
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-25 02:09:44
+LastEditTime: 2024-10-25 19:41:58
 FilePath: /data_service/src/app.py
 Description: main entry point
 '''
@@ -79,6 +79,7 @@ async def limit_rate(request: Request, call_next):
 
         # Check the Authorization header
         token = request.headers.get("Authorization")
+        logging.debug("app token %s", token)
 
         # Check the User-Agent header
         user_agent = request.headers.get("User-Agent", "")
@@ -98,7 +99,7 @@ async def limit_rate(request: Request, call_next):
             requests_per_minute = 40  # Allow 40 requests per minute
             requests_per_day = 10000  # Allow 10,000 requests per day
 
-        # logging.debug("client_ip %s", client_ip)
+        logging.debug("client_ip %s", client_ip)
 
         # Rate limit keys
         rate_limit_key_minute = f"rate_limit:min:{client_ip}"
