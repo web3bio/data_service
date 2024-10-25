@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-14 22:40:16
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-24 20:44:43
+LastEditTime: 2024-10-25 01:58:57
 FilePath: /data_service/src/cache/redis.py
 Description: 
 '''
@@ -43,7 +43,7 @@ class RedisClient:
     async def release_lock(cls, key: str, unique_value: str):
         redis_client = await cls.get_instance()
 
-        # Use a Lua script to ensure atomic check-and-delete operation
+        # Lua script to ensure atomic check-and-delete operation
         release_script = """
         if redis.call("get", KEYS[1]) == ARGV[1] then
             return redis.call("del", KEYS[1])
@@ -53,9 +53,9 @@ class RedisClient:
         """
 
         # Attempt to release the lock only if the stored value matches the unique_value
-        result = await redis_client.eval(release_script, keys=[key], args=[unique_value])
+        result = await redis_client.eval(release_script, 1, key, unique_value)  # Adjusted to pass keys and args
         if result == 1:
-            logging.info("Lock released for key: %s", key)
+            logging.debug("Lock released for key: %s", key)
         else:
             logging.warning("Lock release failed for key: %s, value did not match", key)
 
