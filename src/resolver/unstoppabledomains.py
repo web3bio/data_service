@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-24 17:34:05
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-25 02:11:38
+LastEditTime: 2024-10-25 18:57:27
 FilePath: /data_service/src/resolver/unstoppabledomains.py
 Description: 
 '''
@@ -100,7 +100,14 @@ async def get_unstoppabledomain_from_cache(primary_id, expire_window):
     # Check if the cache needs to be updated based on the expiration window (in seconds)
     if now - updated_at_datetime > timedelta(seconds=expire_window):
         logging.debug(f"Cache key {cache_key} is expired. Returning old data, but marking for update.")
+        if len(cache_value_dict) == 1:
+            # only have one field(updated_at) is also not exist
+            return None, True
         return cache_value_dict, True  # Old data is returned, but it needs to be updated
+
+    if len(cache_value_dict) == 1:
+        # only have one field(updated_at) is also not exist
+        return None, False
 
     logging.debug(f"Cache key {cache_key} is fresh. Returning data.")
     return cache_value_dict, False  # Cache is fresh, no need for update

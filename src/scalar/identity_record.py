@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:59:57
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-24 23:42:49
+LastEditTime: 2024-10-25 17:26:51
 FilePath: /data_service/src/scalar/identity_record.py
 Description: 
 '''
@@ -29,6 +29,7 @@ from .data_source import DataSource
 @strawberry.type
 class IdentityRecord:
     id: str = ""
+    aliases: typing.List[str] = strawberry.field(default_factory=list)
     identity: str = ""
     platform: Platform
     network: typing.Optional[Network] = None

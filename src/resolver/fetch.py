@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 19:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-24 22:19:56
+LastEditTime: 2024-10-25 16:35:16
 FilePath: /data_service/src/resolver/fetch.py
 Description: 
 '''
@@ -22,7 +22,6 @@ from resolver.clusters import query_profile_by_batch_clusters, query_profile_by_
 from resolver.basenames import query_profile_by_basenames, query_profile_by_single_basenames
 from resolver.unstoppabledomains import query_profile_by_unstoppabledomains, query_profile_by_single_unstoppabledomain
 
-
 from resolver.bitcoin import query_profile_by_bitcoin_addresses, query_profile_by_single_bitcoin
 from resolver.litecoin import query_profile_by_litecoin_addresses, query_profile_by_single_litecoin
 from resolver.dogecoin import query_profile_by_dogecoin_addresses, query_profile_by_single_dogecoin
@@ -33,6 +32,8 @@ from resolver.ton import query_profile_by_ton_addresses, query_profile_by_single
 from resolver.xrpc import query_profile_by_xrpc_addresses, query_profile_by_single_xrpc
 from resolver.cosmos import query_profile_by_cosmos_addresses, query_profile_by_single_cosmos
 
+
+from resolver.farcaster import batch_query_profile_by_ids_cache
 
 
 async def batch_fetch(info, platform, identities):
@@ -182,7 +183,8 @@ async def batch_fetch_all(info, vertices_map):
         elif platform_enum == Platform.ens:
             tasks.append(query_profile_by_ensnames(info, identities))
         elif platform_enum == Platform.farcaster:
-            tasks.append(query_profile_by_fnames(info, identities))
+            # tasks.append(query_profile_by_fnames(info, identities))
+            tasks.append(batch_query_profile_by_ids_cache(info, identities, require_cache=False))
         elif platform_enum == Platform.lens:
             tasks.append(query_profile_by_lens_handle(info, identities))
         elif platform_enum == Platform.solana:

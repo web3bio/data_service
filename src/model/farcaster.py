@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 23:03:44
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 01:37:42
+LastEditTime: 2024-10-25 18:03:37
 FilePath: /data_service/src/model/farcaster.py
 Description: 
 '''
@@ -26,6 +26,7 @@ class FarcasterProfile(Base):
     fid: int = Column(Integer, unique=True, index=True)
     fname: str = Column(String, index=True, nullable=True)
     label_name: str = Column(String, index=True, nullable=True)
+    alias: typing.List = Column(JSON, nullable=True)
 
     avatar: str = Column(String, nullable=True)
     display_name: str = Column(String, nullable=True)
@@ -49,7 +50,7 @@ class FarcasterVerified(Base):
     fname: str = Column(String, nullable=True)
     network: str = Column(String, nullable=True)
     address: str = Column(String, unique=True, index=True)
-
+    delete_time: DateTime = Column(DateTime, nullable=True)
 
 class FarcasterSocial(Base):
     """FarcasterSocial"""
@@ -58,3 +59,11 @@ class FarcasterSocial(Base):
     follower: int = Column(Integer, nullable=False)
     following: int = Column(Integer, nullable=False)
     update_time: DateTime = Column(DateTime, nullable=True)
+
+
+class FarcasterFnames(Base):
+    """FarcasterFnames"""
+    __tablename__ = "farcaster_fnames"
+    fname: str = Column(String, primary_key=True, index=True)
+    fid: int = Column(Integer, unique=True, index=True)
+    deleted_at: DateTime = Column(DateTime, nullable=True)
