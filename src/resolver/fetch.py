@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 19:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-21 15:33:33
+LastEditTime: 2024-10-24 22:19:56
 FilePath: /data_service/src/resolver/fetch.py
 Description: 
 '''
@@ -20,6 +20,8 @@ from resolver.lens import query_profile_by_lens_handle, query_profile_by_single_
 from resolver.solana import query_profile_by_solana_addresses, query_profile_by_single_solana
 from resolver.clusters import query_profile_by_batch_clusters, query_profile_by_single_clusters
 from resolver.basenames import query_profile_by_basenames, query_profile_by_single_basenames
+from resolver.unstoppabledomains import query_profile_by_unstoppabledomains, query_profile_by_single_unstoppabledomain
+
 
 from resolver.bitcoin import query_profile_by_bitcoin_addresses, query_profile_by_single_bitcoin
 from resolver.litecoin import query_profile_by_litecoin_addresses, query_profile_by_single_litecoin
@@ -85,6 +87,8 @@ async def single_fetch(info, platform, identity):
         return await query_profile_by_single_clusters(info, identity)
     elif platform == Platform.basenames:
         return await query_profile_by_single_basenames(info, identity)
+    elif platform == Platform.unstoppabledomains:
+        return await query_profile_by_single_unstoppabledomain(info, identity)
     elif platform == Platform.bitcoin:
         return await query_profile_by_single_bitcoin(info, identity)
     elif platform == Platform.litecoin:
@@ -105,6 +109,63 @@ async def single_fetch(info, platform, identity):
         return await query_profile_by_single_cosmos(info, identity)
     else:
         return PlatformNotSupport(platform)
+
+
+async def fetch_identity_graph_vertices(info, vertices_map):
+    tasks = []
+
+    # Prepare the tasks
+    for platform, identities in vertices_map.items():
+        try:
+            platform_enum = Platform[platform]
+        except KeyError:
+            return PlatformNotSupport(platform)
+
+        if platform_enum == Platform.ethereum:
+            tasks.append(query_profile_by_addresses(info, identities))
+        elif platform_enum == Platform.ens:
+            tasks.append(query_profile_by_ensnames(info, identities))
+        elif platform_enum == Platform.farcaster:
+            tasks.append(query_profile_by_fnames(info, identities))
+        elif platform_enum == Platform.lens:
+            tasks.append(query_profile_by_lens_handle(info, identities))
+        elif platform_enum == Platform.solana:
+            tasks.append(query_profile_by_solana_addresses(info, identities))
+        elif platform_enum == Platform.clusters:
+            tasks.append(query_profile_by_batch_clusters(info, identities))
+        elif platform_enum == Platform.basenames:
+            tasks.append(query_profile_by_basenames(info, identities))
+        elif platform_enum == Platform.bitcoin:
+            tasks.append(query_profile_by_bitcoin_addresses(info, identities))
+        elif platform_enum == Platform.litecoin:
+            tasks.append(query_profile_by_litecoin_addresses(info, identities))
+        elif platform_enum == Platform.dogecoin:
+            tasks.append(query_profile_by_dogecoin_addresses(info, identities))
+        elif platform_enum == Platform.aptos:
+            tasks.append(query_profile_by_aptos_addresses(info, identities))
+        elif platform_enum == Platform.stacks:
+            tasks.append(query_profile_by_stacks_addresses(info, identities))
+        elif platform_enum == Platform.tron:
+            tasks.append(query_profile_by_tron_addresses(info, identities))
+        elif platform_enum == Platform.ton:
+            tasks.append(query_profile_by_ton_addresses(info, identities))
+        elif platform_enum == Platform.xrpc:
+            tasks.append(query_profile_by_xrpc_addresses(info, identities))
+        elif platform_enum == Platform.cosmos:
+            tasks.append(query_profile_by_cosmos_addresses(info, identities))
+        else:
+            logging.warning(f"Unsupported platform: {platform}")
+
+    # Run all tasks concurrently
+    results = await asyncio.gather(*tasks)
+
+    # Collect and merge the results
+    vertices = []
+    for result in results:
+        vertices.extend(result)
+
+    return vertices
+
 
 async def batch_fetch_all(info, vertices_map):
     tasks = []

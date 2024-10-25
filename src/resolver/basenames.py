@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-09-06 15:40:40
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-21 15:47:46
+LastEditTime: 2024-10-24 22:21:35
 FilePath: /data_service/src/resolver/basenames.py
 Description: 
 '''
@@ -192,7 +192,7 @@ async def query_profile_by_single_basenames(info, name):
 
     if owner is not None:
         owner_addresses.append(Address(network=Network.ethereum, address=owner))
-    
+
     network = None
     address = None
     resolved_address = profile_record.get('resolved_address', None)
@@ -203,7 +203,7 @@ async def query_profile_by_single_basenames(info, name):
     else:
         address = owner
         network = Network.ethereum
-    
+
     display_name = name
     avatar = None
     description = None
@@ -215,7 +215,7 @@ async def query_profile_by_single_basenames(info, name):
         display_name = texts.get("name", name)
     else:
         texts = None
-    
+
     resolved_records = profile_record.get('resolved_records', {})
     records = []
     if resolved_records:

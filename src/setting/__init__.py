@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 19:38:25
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-15 00:47:58
+LastEditTime: 2024-10-24 21:14:46
 FilePath: /data_service/src/setting/__init__.py
 Description: 
 '''
@@ -22,6 +22,12 @@ Settings = {
 PG_DSN = {
     "async_cryptodata": "",
     "sync_cryptodata": "",
+}
+
+UPSTREAM = {
+    "unstoppabledomains_api": {},
+    "spaceid_api": {},
+    "dotbit_api": {},
 }
 
 TIGERGRAPH_SETTINGS = {
@@ -75,6 +81,7 @@ def load_settings(env="test"):
     global TIGERGRAPH_SETTINGS
     global REDIS_SETTINGS
     global AUTHENTICATE
+    global UPSTREAM
     config_file = "/app/config/production.toml"
     if env is not None:
         if env not in ["development", "test", "production"]:
@@ -104,6 +111,21 @@ def load_settings(env="test"):
     }
     AUTHENTICATE = {
         "secret": config["authenticate"]["secret"],
+    }
+    UPSTREAM = {
+        "unstoppabledomains_api": {
+            "api": config["upstream"]["unstoppabledomains_api"]["api"],
+            "api_key": config["upstream"]["unstoppabledomains_api"]["api_key"],
+        },
+        "spaceid_api": {
+            "api": config["upstream"]["spaceid_api"]["api"],
+            "api_key": config["upstream"]["spaceid_api"]["api_key"],
+        },
+        "dotbit_api": {
+            "api": config["upstream"]["dotbit_api"]["api"],
+            "api_key": config["upstream"]["dotbit_api"]["api_key"],
+            "register_api": config["upstream"]["dotbit_api"]["register_api"],
+        }
     }
     return config
 

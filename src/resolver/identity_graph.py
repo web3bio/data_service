@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 03:10:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-12 17:13:29
+LastEditTime: 2024-10-24 20:59:12
 FilePath: /data_service/src/resolver/identity_graph.py
 Description: 
 '''
@@ -35,7 +35,7 @@ from scalar.identity_connection import IdentityConnection, EdgeType
 from scalar.error import GraphDBException
 
 
-from .fetch import batch_fetch_all
+from .fetch import fetch_identity_graph_vertices
 
 
 async def find_identity_graph(info, self_platform, self_identity):
@@ -103,7 +103,7 @@ async def find_identity_graph(info, self_platform, self_identity):
     # Use asyncio.gather, which allows run multiple asynchronous tasks in parallel.
     # This method can avoid sequentially awaiting each query and instead run them all concurrently, 
     # making the process more efficient.
-    vertices = batch_fetch_all(info, vertices_map)
+    vertices = fetch_identity_graph_vertices(info, vertices_map)
 
     identity_graph = IdentityGraph(graph_id=graph_id, vertices=vertices, edges=edges)
     return identity_graph
