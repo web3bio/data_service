@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 19:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-26 00:16:49
+LastEditTime: 2024-10-26 03:08:53
 FilePath: /data_service/src/resolver/fetch.py
 Description: 
 '''
@@ -35,6 +35,8 @@ from resolver.cosmos import query_profile_by_cosmos_addresses, query_profile_by_
 
 from resolver.farcaster import query_farcaster_profile_by_ids_cache
 from resolver.lens import query_lens_profile_by_ids_cache
+from resolver.ethereum import query_ethereum_profile_by_ids_cache
+from resolver.ensname import query_ensname_profile_by_ids_cache
 
 
 async def batch_fetch(info, platform, identities):
@@ -112,7 +114,6 @@ async def single_fetch(info, platform, identity):
     else:
         return PlatformNotSupport(platform)
 
-
 async def fetch_identity_graph_vertices(info, vertices_map):
     tasks = []
 
@@ -173,46 +174,48 @@ async def batch_fetch_all(info, vertices_map):
     tasks = []
 
     # Prepare the tasks
-    for platform, query_ids in vertices_map.items():
+    for platform, identities in vertices_map.items():
         try:
             platform_enum = Platform[platform]
         except KeyError:
             return PlatformNotSupport(platform)
 
         if platform_enum == Platform.ethereum:
-            tasks.append(query_profile_by_addresses(info, query_ids))
+            # tasks.append(query_profile_by_addresses(info, identities))
+            tasks.append(query_ethereum_profile_by_ids_cache(info, identities, require_cache=True))
         elif platform_enum == Platform.ens:
-            tasks.append(query_profile_by_ensnames(info, query_ids))
+            # tasks.append(query_profile_by_ensnames(info, identities))
+            tasks.append(query_ensname_profile_by_ids_cache(info, identities, require_cache=True))
         elif platform_enum == Platform.farcaster:
-            # tasks.append(query_profile_by_fnames(info, query_ids))
-            tasks.append(query_farcaster_profile_by_ids_cache(info, query_ids, require_cache=True))
+            # tasks.append(query_profile_by_fnames(info, identities))
+            tasks.append(query_farcaster_profile_by_ids_cache(info, identities, require_cache=True))
         elif platform_enum == Platform.lens:
-            # tasks.append(query_profile_by_lens_handle(info, query_ids))
-            tasks.append(query_lens_profile_by_ids_cache(info, query_ids, require_cache=True))
-        elif platform_enum == Platform.solana:
-            tasks.append(query_profile_by_solana_addresses(info, query_ids))
+            # tasks.append(query_profile_by_lens_handle(info, identities))
+            tasks.append(query_lens_profile_by_ids_cache(info, identities, require_cache=True))
         elif platform_enum == Platform.clusters:
-            tasks.append(query_profile_by_batch_clusters(info, query_ids))
+            tasks.append(query_profile_by_batch_clusters(info, identities))
         elif platform_enum == Platform.basenames:
-            tasks.append(query_profile_by_basenames(info, query_ids))
+            tasks.append(query_profile_by_basenames(info, identities))
+        elif platform_enum == Platform.solana:
+            tasks.append(query_profile_by_solana_addresses(info, identities))
         elif platform_enum == Platform.bitcoin:
-            tasks.append(query_profile_by_bitcoin_addresses(info, query_ids))
+            tasks.append(query_profile_by_bitcoin_addresses(info, identities))
         elif platform_enum == Platform.litecoin:
-            tasks.append(query_profile_by_litecoin_addresses(info, query_ids))
+            tasks.append(query_profile_by_litecoin_addresses(info, identities))
         elif platform_enum == Platform.dogecoin:
-            tasks.append(query_profile_by_dogecoin_addresses(info, query_ids))
+            tasks.append(query_profile_by_dogecoin_addresses(info, identities))
         elif platform_enum == Platform.aptos:
-            tasks.append(query_profile_by_aptos_addresses(info, query_ids))
+            tasks.append(query_profile_by_aptos_addresses(info, identities))
         elif platform_enum == Platform.stacks:
-            tasks.append(query_profile_by_stacks_addresses(info, query_ids))
+            tasks.append(query_profile_by_stacks_addresses(info, identities))
         elif platform_enum == Platform.tron:
-            tasks.append(query_profile_by_tron_addresses(info, query_ids))
+            tasks.append(query_profile_by_tron_addresses(info, identities))
         elif platform_enum == Platform.ton:
-            tasks.append(query_profile_by_ton_addresses(info, query_ids))
+            tasks.append(query_profile_by_ton_addresses(info, identities))
         elif platform_enum == Platform.xrpc:
-            tasks.append(query_profile_by_xrpc_addresses(info, query_ids))
+            tasks.append(query_profile_by_xrpc_addresses(info, identities))
         elif platform_enum == Platform.cosmos:
-            tasks.append(query_profile_by_cosmos_addresses(info, query_ids))
+            tasks.append(query_profile_by_cosmos_addresses(info, identities))
         else:
             logging.warning(f"Unsupported platform: {platform}")
 
