@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-26 03:01:10
+LastEditTime: 2024-10-27 20:53:55
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -31,7 +31,7 @@ from scalar.error import PlatformNotSupport
 import setting
 from cache.redis import RedisClient
 
-from resolver.fetch import batch_fetch, single_fetch, batch_fetch_all
+from resolver.fetch import single_fetch, batch_fetch_all
 
 from scalar.platform import Platform
 from scalar.identity_record import IdentityRecord
@@ -187,7 +187,5 @@ class Query:
 
     @strawberry.field(permission_classes=[RateLimitPermission])
     async def identity(self, info: Info, platform: Platform, identity: str) -> Optional[IdentityRecord]:
-        # redis_client = await RedisClient.get_instance()
-        # redis_value = await redis_client.get("some_key")
         logging.debug("Query by identities(platform=%s, identity=%s)", platform, json.dumps(identity))
         return await single_fetch(info, platform, identity)

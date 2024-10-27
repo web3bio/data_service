@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:25:17
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-16 16:30:53
+LastEditTime: 2024-10-27 20:35:32
 FilePath: /data_service/src/resolver/tron.py
 Description: 
 '''
@@ -32,8 +32,11 @@ QUERY_MAX_LIMIT = 200
 
 
 async def query_profile_by_single_tron(info, address):
+    address_primary_id = f"{Platform.tron.value},{address}"
+    aliases = [address_primary_id]
     identity_record = IdentityRecord(
-        id=f"{Platform.tron.value},{address}",
+        id=address_primary_id,
+        aliases=aliases,
         identity=address,
         platform=Platform.tron,
         network=Network.tron,
@@ -50,8 +53,11 @@ async def query_profile_by_tron_addresses(info, addresses):
     logging.debug("query_profile_by_tron_addresses %s", addresses)
     result = []
     for addr in addresses:
+        address_primary_id = f"{Platform.tron.value},{addr}"
+        aliases = [address_primary_id]
         result.append(IdentityRecordSimplified(
-            id=f"{Platform.tron.value},{addr}",
+            id=address_primary_id,
+            aliases=aliases,
             identity=addr,
             platform=Platform.tron,
             network=Network.tron,

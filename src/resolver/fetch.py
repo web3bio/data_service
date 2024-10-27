@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 19:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-26 03:08:53
+LastEditTime: 2024-10-27 20:53:38
 FilePath: /data_service/src/resolver/fetch.py
 Description: 
 '''
@@ -12,6 +12,7 @@ import asyncio
 import logging
 from scalar.platform import Platform
 from scalar.error import PlatformNotSupport
+from scalar.identity_record import IdentityRecord
 
 from resolver.ethereum import query_profile_by_addresses, query_profile_by_single_address
 from resolver.ensname import query_profile_by_ensnames, query_profile_by_single_ensname
@@ -39,52 +40,19 @@ from resolver.ethereum import query_ethereum_profile_by_ids_cache
 from resolver.ensname import query_ensname_profile_by_ids_cache
 
 
-async def batch_fetch(info, platform, identities):
-    if platform == Platform.ethereum:
-        return await query_profile_by_addresses(info, identities)
-    elif platform == Platform.ens:
-        return await query_profile_by_ensnames(info, identities)
-    elif platform == Platform.farcaster:
-        return await query_profile_by_fnames(info, identities)
-    elif platform == Platform.lens:
-        return await query_profile_by_lens_handle(info, identities)
-    elif platform == Platform.solana:
-        return await query_profile_by_solana_addresses(info, identities)
-    elif platform == Platform.clusters:
-        return await query_profile_by_batch_clusters(info, identities)
-    elif platform == Platform.basenames:
-        return await query_profile_by_basenames(info, identities)
-    elif platform == Platform.bitcoin:
-        return await query_profile_by_bitcoin_addresses(info, identities)
-    elif platform == Platform.litecoin:
-        return await query_profile_by_litecoin_addresses(info, identities)
-    elif platform == Platform.dogecoin:
-        return await query_profile_by_dogecoin_addresses(info, identities)
-    elif platform == Platform.aptos:
-        return await query_profile_by_aptos_addresses(info, identities)
-    elif platform == Platform.stacks:
-        return await query_profile_by_stacks_addresses(info, identities)
-    elif platform == Platform.tron:
-        return await query_profile_by_tron_addresses(info, identities)
-    elif platform == Platform.ton:
-        return await query_profile_by_ton_addresses(info, identities)
-    elif platform == Platform.xrpc:
-        return await query_profile_by_xrpc_addresses(info, identities)
-    elif platform == Platform.cosmos:
-        return await query_profile_by_cosmos_addresses(info, identities)
-    else:
-        return PlatformNotSupport(platform)
-
-
 async def single_fetch(info, platform, identity):
     if platform == Platform.ethereum:
-        return await query_profile_by_single_address(info, identity)
+        # return await query_profile_by_single_address(info, identity)
+        identity_records = await query_ethereum_profile_by_ids_cache(info, [identity], require_cache=True)
     elif platform == Platform.ens:
-        return await query_profile_by_single_ensname(info, identity)
+        # return await query_profile_by_single_ensname(info, identity)
+        identity_records = await query_ensname_profile_by_ids_cache(info, [identity], require_cache=True)
     elif platform == Platform.farcaster:
-        return await query_profile_by_single_fname(info, identity)
+        # return await query_profile_by_single_fname(info, identity)
+        identity_records = await query_farcaster_profile_by_ids_cache(info, [identity], require_cache=True)
     elif platform == Platform.lens:
-        return await query_profile_by_single_lens_handle(info, identity)
+        # return await query_profile_by_single_lens_handle(info, identity)
+        identity_records = await query_lens_profile_by_ids_cache(info, [identity], require_cache=True)
     elif platform == Platform.solana:
         return await query_profile_by_single_solana(info, identity)
     elif platform == Platform.clusters:
@@ -113,6 +81,26 @@ async def single_fetch(info, platform, identity):
         return await query_profile_by_single_cosmos(info, identity)
     else:
         return PlatformNotSupport(platform)
+    
+    if not identity_records:
+        return None
+    
+    one = identity_records[0]
+    identity_record = IdentityRecord(
+        id=one.id,
+        aliases=one.aliases,
+        identity=one.identity,
+        platform=one.platform,
+        network=one.network,
+        primary_name=one.primary_name,
+        is_primary=one.is_primary,
+        resolved_address=one.resolved_address,
+        owner_address=one.owner_address,
+        expired_at=one.expired_at,
+        updated_at=one.updated_at,
+        profile=one.profile,
+    )
+    return identity_record
 
 async def fetch_identity_graph_vertices(info, vertices_map):
     tasks = []

@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 14:10:05
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-15 16:38:18
+LastEditTime: 2024-10-27 20:50:00
 FilePath: /data_service/src/resolver/clusters.py
 Description: 
 '''
@@ -175,7 +175,7 @@ def get_clusters_selected_fields(db_baseclass_name, info):
 
 async def query_profile_by_single_clusters(info, query_str):
     logging.debug("query_profile_by_single_clusters %s", query_str)
-    query_item = query_str.rstrip('/').split('/')
+    query_item = query_str.removesuffix('/').split('/')
     selected_fields = get_clusters_selected_fields(ClustersProfile, info)
     if len(query_item) == 1:
         clusters_profile_records = []
