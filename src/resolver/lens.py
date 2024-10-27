@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 01:31:36
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-26 00:24:56
+LastEditTime: 2024-10-26 03:17:15
 FilePath: /data_service/src/resolver/lens.py
 Description: 
 '''
@@ -237,6 +237,16 @@ async def query_profile_by_single_lens_handle(info, name):
 
     if profile_record is None:
         return None
+    if profile_id is None:
+        return None
+
+    name = profile_record.get('name', None)
+    if name is None:
+        return None
+    
+    aliases = []
+    aliases.append("{},#{}".format(Platform.lens.value, profile_id))
+    aliases.append("{},{}".format(Platform.lens.value, name))
 
     network = None
     resolved_address = []
@@ -248,10 +258,7 @@ async def query_profile_by_single_lens_handle(info, name):
         resolved_address.append(Address(address=address, network=network))
         owner_address.append(Address(address=address, network=network))
         records.append(Address(address=address, network=network))
-
-    name = profile_record.get('name', None)
-    if name is None:
-        return None
+        aliases.append("{},{}".format(Platform.lens.value, address))
 
     texts = profile_record.get('texts', {})
     if texts:
@@ -504,11 +511,6 @@ def convert_cache_to_identity_record(cache_value):
         logging.exception(ex)
         return None
 
-
-# async def get_profile_ids_by_input(query_ids):
-    
-
-
 async def get_lens_profile_from_cache(query_ids, expire_window):
     '''
     description: 
@@ -577,16 +579,18 @@ async def get_lens_profile_from_cache(query_ids, expire_window):
                                 # Old data is returned, but it needs to be updated
                                 logging.debug(f"Cache key {profile_cache_key} is expired. Returning old data, but marking for update.")
                                 require_update_ids.append(profile_cache_key.removeprefix("profile:"))
-                                cache_identity_records.append(
-                                    convert_cache_to_identity_record(profile_value_dict)
-                                )
+                                identity_record = convert_cache_to_identity_record(profile_value_dict)
+                                if identity_record:
+                                    cache_identity_records.append(identity_record)
                         else:
                             if len(profile_value_dict) == 1:
                                 # only have one field(updated_at) is also not exist
                                 logging.debug(f"Cache key {profile_cache_key} is empty but has been caching.")
                             else:
                                 logging.debug(f"Cache key {profile_cache_key} has been caching.")
-                                cache_identity_records.append(convert_cache_to_identity_record(profile_value_dict))
+                                identity_record = convert_cache_to_identity_record(profile_value_dict)
+                                if identity_record:
+                                    cache_identity_records.append(identity_record)
 
         return cache_identity_records, require_update_ids, missing_query_ids
     except Exception as ex:
@@ -700,19 +704,9 @@ async def batch_query_profile_by_profile_ids_db(query_ids) -> typing.List[Identi
     lens_handles = []
     lens_owners = []
     for _id in query_ids:
-        item = _id.split(",")
-        if len(item) < 2:
-            continue
-        if item[0] != Platform.lens.value:
-            continue
-
-        identity = item[1]
+        identity = _id.split(",")[1]
         if identity.startswith('#'):
-            try:
-                query_profile_id = identity.removeprefix('#')
-                lens_profile_ids.append(int(query_profile_id))
-            except:
-                continue
+            lens_profile_ids.append(int(identity.removeprefix('#')))
         else:
             is_evm = is_ethereum_address(identity)
             if is_evm:
@@ -855,23 +849,46 @@ async def query_and_update_missing_query_ids(query_ids):
 
     return identity_records
 
-async def query_lens_profile_by_ids_cache(info, query_ids, require_cache=False):
-    if len(query_ids) > QUERY_MAX_LIMIT:
+def filter_lens_query_ids(identities):
+    final_query_ids = set()
+    for identity in identities:
+        if identity.startswith('#'):
+            try:
+                query_profile_id = int(copy.deepcopy(identity).removeprefix('#'))
+                final_query_ids.add(f"{Platform.lens.value},{identity}")
+            except:
+                continue
+        else:
+            is_evm = is_ethereum_address(identity)
+            if is_evm:
+                final_query_ids.add(f"{Platform.lens.value},{identity}")
+            else:
+                if 4 < len(identity) < 256:
+                    final_query_ids.add(f"{Platform.lens.value},{identity}")
+
+    return list(final_query_ids)
+
+async def query_lens_profile_by_ids_cache(info, identities, require_cache=False):
+    if len(identities) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
+
+    filter_query_ids = filter_lens_query_ids(identities)
+    if len(filter_query_ids) == 0:
+        return []
 
     identity_records = []
     if require_cache is False:
         # query data from db and return immediately
-        logging.debug("query_lens_profile_by_ids_cache input %s", query_ids)
-        identity_records = await batch_query_profile_by_profile_ids_db(query_ids)
+        logging.debug("query_lens_profile_by_ids_cache input %s", filter_query_ids)
+        identity_records = await batch_query_profile_by_profile_ids_db(filter_query_ids)
         return identity_records
 
     # require_cache is True:
     cache_identity_records, \
     require_update_ids, \
-    missing_query_ids = await get_lens_profile_from_cache(query_ids, expire_window=12*3600)
+    missing_query_ids = await get_lens_profile_from_cache(filter_query_ids, expire_window=12*3600)
 
-    logging.debug("query_lens_profile_by_ids_cache input query_ids: {}".format(query_ids))
+    logging.debug("query_lens_profile_by_ids_cache input filter_query_ids: {}".format(filter_query_ids))
     logging.debug("query_lens_profile_by_ids_cache missing_query_ids: {}".format(missing_query_ids))
     logging.debug("query_lens_profile_by_ids_cache require_update_ids: {}".format(require_update_ids))
     logging.debug("query_lens_profile_by_ids_cache cache_identity_records: {}".format(len(cache_identity_records)))

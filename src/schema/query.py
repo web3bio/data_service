@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-25 22:22:04
+LastEditTime: 2024-10-26 03:01:10
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -168,7 +168,7 @@ class Query:
         vertices_map = {}
         for row in ids:
             item = row.split(",")
-            if len(item) < 2:
+            if len(item) != 2:
                 continue
 
             _platform = item[0]
@@ -179,8 +179,8 @@ class Query:
             if _platform not in vertices_map:
                 vertices_map[_platform] = []
 
-            # vertices_map[_platform].append(_identity)
-            vertices_map[_platform].append(row)
+            vertices_map[_platform].append(_identity)
+            # vertices_map[_platform].append(row)
 
         result = await batch_fetch_all(info, vertices_map)
         return result

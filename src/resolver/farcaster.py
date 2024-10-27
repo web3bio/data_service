@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-26 00:05:14
+LastEditTime: 2024-10-26 03:15:43
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
@@ -60,7 +60,7 @@ def get_farcaster_selected_fields(info):
     info_selected_fields = info.selected_fields[0].selections
 
     profile_fields = ["fid", "fname", "network", "address"]
-    verified_fields = []
+    verified_fields = ["fid", "network", "address"]
     social_fields = []
     for field in info_selected_fields:
         field_name = convert_camel_case(field.name)
@@ -273,13 +273,19 @@ async def query_profile_by_single_fname(info, fname):
 
     if profile_record is None:
         return None
-
+    if fid is None:
+        return None
     fname = profile_record.get('fname', None)
     network = profile_record.get('network', None)
     address = profile_record.get('address', None)
     if fname is None:
         return None
 
+    aliases = []
+    aliases.append("{},#{}".format(Platform.farcaster.value, fid))
+    aliases.append("{},{}".format(Platform.farcaster.value, fname))
+    for owner_addr in owner_addresses:
+        aliases.append("{},{}".format(Platform.farcaster.value, owner_addr.address))
     profile = Profile(
         uid=fid,
         identity=fname,
@@ -304,6 +310,7 @@ async def query_profile_by_single_fname(info, fname):
 
     identity_record = IdentityRecord(
         id=f"{Platform.farcaster.value},{fname}",
+        aliases=aliases,
         identity=fname,
         platform=Platform.farcaster,
         network=network,
@@ -532,26 +539,16 @@ async def get_fids_by_input(query_ids):
     fnames = []
     verified_addresses = []
     for _id in query_ids:
-        item = _id.split(",")
-        if len(item) < 2:
-            continue
-        if item[0] != Platform.farcaster.value:
-            continue
-
-        query_id = item[1]
-        if query_id.startswith('#'):
-            try:
-                query_fid = query_id.removeprefix('#')
-                final_fids.add(int(query_fid))
-            except:
-                continue
+        identity = _id.split(",")[1]
+        if identity.startswith('#'):
+            final_fids.add(int(identity.removeprefix('#')))
         else:
-            is_evm = is_ethereum_address(query_id)
-            is_solana = is_base58_solana_address(query_id)
+            is_evm = is_ethereum_address(identity)
+            is_solana = is_base58_solana_address(identity)
             if is_evm or is_solana:
-                verified_addresses.append(query_id)
+                verified_addresses.append(identity)
             else:
-                fnames.append(query_id)
+                fnames.append(identity)
 
     async with get_session() as s:
         if fnames:
@@ -660,16 +657,18 @@ async def get_farcaster_profile_from_cache(query_ids, expire_window):
                                 # Old data is returned, but it needs to be updated
                                 logging.debug(f"Cache key {profile_cache_key} is expired. Returning old data, but marking for update.")
                                 require_update_ids.append(profile_cache_key.removeprefix("profile:"))
-                                cache_identity_records.append(
-                                    convert_cache_to_identity_record(profile_value_dict)
-                                )
+                                identity_record = convert_cache_to_identity_record(profile_value_dict)
+                                if identity_record:
+                                    cache_identity_records.append(identity_record)
                         else:
                             if len(profile_value_dict) == 1:
                                 # only have one field(updated_at) is also not exist
                                 logging.debug(f"Cache key {profile_cache_key} is empty but has been caching.")
                             else:
                                 logging.debug(f"Cache key {profile_cache_key} has been caching.")
-                                cache_identity_records.append(convert_cache_to_identity_record(profile_value_dict))
+                                identity_record = convert_cache_to_identity_record(profile_value_dict)
+                                if identity_record:
+                                    cache_identity_records.append(identity_record)
 
         return cache_identity_records, require_update_ids, missing_query_ids
     except Exception as ex:
@@ -911,24 +910,48 @@ async def query_and_update_missing_query_ids(query_ids):
 
     return identity_records
 
-async def query_farcaster_profile_by_ids_cache(info, query_ids, require_cache=False):
-    if len(query_ids) > QUERY_MAX_LIMIT:
+def filter_farcaster_query_ids(identities):
+    final_query_ids = set()
+    for identity in identities:
+        if identity.startswith('#'):
+            try:
+                fid = int(copy.deepcopy(identity).removeprefix('#'))
+                final_query_ids.add(f"{Platform.farcaster.value},{identity}")
+            except:
+                continue
+        else:
+            is_evm = is_ethereum_address(identity)
+            is_solana = is_base58_solana_address(identity)
+            if is_evm or is_solana:
+                final_query_ids.add(f"{Platform.farcaster.value},{identity}")
+            else:
+                if 0 < len(identity) < 64:
+                    final_query_ids.add(f"{Platform.farcaster.value},{identity}")
+
+    return list(final_query_ids)
+
+async def query_farcaster_profile_by_ids_cache(info, identities, require_cache=False):
+    if len(identities) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
+
+    filter_query_ids = filter_farcaster_query_ids(identities)
+    if len(filter_query_ids) == 0:
+        return []
 
     identity_records = []
     if require_cache is False:
         # query data from db and return immediately
-        fids = await get_fids_by_input(query_ids)
-        logging.debug("query_farcaster_profile_by_ids_cache input %s turn to fids: %s", query_ids, fids)
+        fids = await get_fids_by_input(filter_query_ids)
+        logging.debug("query_farcaster_profile_by_ids_cache filter_query_ids %s turn to fids: %s", filter_query_ids, fids)
         identity_records = await batch_query_profile_by_fids_db(fids)
         return identity_records
 
     # require_cache is True:
     cache_identity_records, \
     require_update_ids, \
-    missing_query_ids = await get_farcaster_profile_from_cache(query_ids, expire_window=12*3600)
+    missing_query_ids = await get_farcaster_profile_from_cache(filter_query_ids, expire_window=12*3600)
 
-    logging.debug("query_farcaster_profile_by_ids_cache input query_ids: {}".format(query_ids))
+    logging.debug("query_farcaster_profile_by_ids_cache input filter_query_ids: {}".format(filter_query_ids))
     logging.debug("query_farcaster_profile_by_ids_cache missing_query_ids: {}".format(missing_query_ids))
     logging.debug("query_farcaster_profile_by_ids_cache require_update_ids: {}".format(require_update_ids))
     logging.debug("query_farcaster_profile_by_ids_cache cache_identity_records: {}".format(len(cache_identity_records)))

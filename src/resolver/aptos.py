@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:24:59
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-16 16:22:33
+LastEditTime: 2024-10-26 03:18:27
 FilePath: /data_service/src/resolver/aptos.py
 Description: 
 '''
@@ -31,8 +31,11 @@ QUERY_MAX_LIMIT = 200
 
 
 async def query_profile_by_single_aptos(info, address):
+    address_primary_id = f"{Platform.aptos.value},{address}"
+    aliases = [address_primary_id]
     identity_record = IdentityRecord(
-        id=f"{Platform.aptos.value},{address}",
+        id=address_primary_id,
+        aliases=aliases,
         identity=address,
         platform=Platform.aptos,
         network=Network.aptos,
@@ -49,8 +52,11 @@ async def query_profile_by_aptos_addresses(info, addresses):
     logging.debug("query_profile_by_aptos_addresses %s", addresses)
     result = []
     for addr in addresses:
+        address_primary_id = f"{Platform.aptos.value},{addr}"
+        aliases = [address_primary_id]
         result.append(IdentityRecordSimplified(
-            id=f"{Platform.aptos.value},{addr}",
+            id=address_primary_id,
+            aliases=aliases,
             identity=addr,
             platform=Platform.aptos,
             network=Network.aptos,
