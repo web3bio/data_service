@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:32:53
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-27 23:08:39
+LastEditTime: 2024-10-28 00:27:22
 FilePath: /data_service/src/resolver/ensname.py
 Description: 
 '''
@@ -417,7 +417,7 @@ def convert_cache_to_identity_record(cache_value):
                     uid=social_dict.get("uid", None),
                     following=social_dict.get("following", 0),
                     follower=social_dict.get("follower", 0),
-                    update_at=social_updated_at,
+                    updated_at=social_updated_at,
                 )
             profile = Profile(
                 uid=profile_data.get("uid"),

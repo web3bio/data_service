@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-27 23:19:37
+LastEditTime: 2024-10-28 00:27:36
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
@@ -128,7 +128,7 @@ def get_farcaster_selected_fields(info):
                                                 social_fields.append("following")
                                             case "follower":
                                                 social_fields.append("follower")
-                                            case "update_at":
+                                            case "updated_at":
                                                 social_fields.append("update_time")
                             case _:
                                 continue
@@ -205,7 +205,7 @@ def get_farcaster_selected_fields(info):
                                                                 social_fields.append("following")
                                                             case "follower":
                                                                 social_fields.append("follower")
-                                                            case "update_at":
+                                                            case "updated_at":
                                                                 social_fields.append("update_time")
             # If an exact match is not confirmed, this last case will be used if provided
             case _:
@@ -304,7 +304,7 @@ async def query_profile_by_single_fname(info, fname):
             uid=fid,
             following=social_record.get('following', 0),
             follower=social_record.get('follower', 0),
-            update_at=social_record.get('update_time', None),
+            updated_at=social_record.get('update_time', None),
         )
         profile.social = social
 
@@ -417,7 +417,7 @@ async def query_profile_by_fnames(info, fnames):
                         uid=fid,
                         following=social_info.get('following', 0),
                         follower=social_info.get('follower', 0),
-                        update_at=social_info.get('update_time', None),
+                        updated_at=social_info.get('update_time', None),
                     )
                     profile.social = social
 
@@ -490,7 +490,7 @@ def convert_cache_to_identity_record(cache_value):
                     uid=social_dict.get("uid", None),
                     following=social_dict.get("following", 0),
                     follower=social_dict.get("follower", 0),
-                    update_at=social_updated_at,
+                    updated_at=social_updated_at,
                 )
             profile = Profile(
                 uid=profile_data.get("uid"),
@@ -871,7 +871,7 @@ async def batch_query_profile_by_fids_db(fids) -> typing.List[IdentityRecordSimp
                         uid=fid,
                         following=social_info.following,
                         follower=social_info.follower,
-                        update_at=social_info.update_time,
+                        updated_at=social_info.update_time,
                     )
                     profile.social = social
 
