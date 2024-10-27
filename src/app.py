@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 19:02:56
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-25 22:22:28
+LastEditTime: 2024-10-27 23:00:01
 FilePath: /data_service/src/app.py
 Description: main entry point
 '''

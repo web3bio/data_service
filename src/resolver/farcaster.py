@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 21:38:55
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-26 03:15:43
+LastEditTime: 2024-10-27 23:19:37
 FilePath: /data_service/src/resolver/farcaster.py
 Description: 
 '''
@@ -330,7 +330,7 @@ async def query_profile_by_fnames(info, fnames):
     if len(fnames) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
 
-    logging.debug("query_profile_by_fnames %s", fnames)
+    # logging.debug("query_profile_by_fnames %s", fnames)
     profile_fields,\
     verified_fields,\
     social_fields = get_farcaster_selected_fields(info)
@@ -615,8 +615,6 @@ async def get_farcaster_profile_from_cache(query_ids, expire_window):
         for alias_cache_key_bytes, profile_cache_key_bytes in aliases_cache_item.items():
             alias_cache_key = alias_cache_key_bytes.decode("utf-8") if isinstance(alias_cache_key_bytes, bytes) else alias_cache_key_bytes
             profile_cache_key = profile_cache_key_bytes.decode("utf-8") if profile_cache_key_bytes is not None else None
-
-            logging.debug(f"{alias_cache_key}: {profile_cache_key}")
             if profile_cache_key is None:
                 missing_query_ids.append(alias_cache_key.removeprefix("aliases:"))
             else:
@@ -651,11 +649,11 @@ async def get_farcaster_profile_from_cache(query_ids, expire_window):
                             
                             if len(profile_value_dict) == 1:
                                 # only have one field(updated_at) is also not exist
-                                logging.debug(f"Cache key {profile_cache_key} is empty. Returning old data, but marking for update.")
+                                # logging.debug(f"Cache key {profile_cache_key} is empty. Returning old data, but marking for update.")
                                 require_update_ids.append(profile_cache_key.removeprefix("profile:"))
                             else:
                                 # Old data is returned, but it needs to be updated
-                                logging.debug(f"Cache key {profile_cache_key} is expired. Returning old data, but marking for update.")
+                                # logging.debug(f"Cache key {profile_cache_key} is expired. Returning old data, but marking for update.")
                                 require_update_ids.append(profile_cache_key.removeprefix("profile:"))
                                 identity_record = convert_cache_to_identity_record(profile_value_dict)
                                 if identity_record:
@@ -663,9 +661,10 @@ async def get_farcaster_profile_from_cache(query_ids, expire_window):
                         else:
                             if len(profile_value_dict) == 1:
                                 # only have one field(updated_at) is also not exist
-                                logging.debug(f"Cache key {profile_cache_key} is empty but has been caching.")
+                                # logging.debug(f"Cache key {profile_cache_key} is empty but has been caching.")
+                                continue
                             else:
-                                logging.debug(f"Cache key {profile_cache_key} has been caching.")
+                                # logging.debug(f"Cache key {profile_cache_key} has been caching.")
                                 identity_record = convert_cache_to_identity_record(profile_value_dict)
                                 if identity_record:
                                     cache_identity_records.append(identity_record)
@@ -688,7 +687,7 @@ async def set_farcaster_empty_profile_to_cache(query_id, empty_record, expire_wi
     try:
         # Try acquiring the lock (with a timeout of 30 seconds)
         if await RedisClient.acquire_lock(profile_lock_key, profile_unique_value, lock_timeout=30):
-            logging.debug(f"Lock acquired for key: {profile_lock_key}")
+            # logging.debug(f"Lock acquired for key: {profile_lock_key}")
             # Set the current time as 'updated_at' in "yyyy-mm-dd HH:MM:SS" format
             empty_record["updated_at"] = get_current_time_string()
             profile_value_json = json.dumps(empty_record)
@@ -696,34 +695,33 @@ async def set_farcaster_empty_profile_to_cache(query_id, empty_record, expire_wi
             # Set the cache in Redis with the specified expiration time (in seconds)
             redis_client = await RedisClient.get_instance()
             await redis_client.set(profile_cache_key, profile_value_json, ex=final_expire_window)
-            logging.debug(f"Cache updated for key: {profile_cache_key}")
+            # logging.debug(f"Cache updated for key: {profile_cache_key}")
         else:
             logging.warning(f"Could not acquire lock for key: {profile_lock_key}")
 
     finally:
         # Always release the lock after the critical section is done
         await RedisClient.release_lock(profile_lock_key, profile_unique_value)
-        logging.debug(f"Lock released for key: {profile_lock_key}")
-    
+        # logging.debug(f"Lock released for key: {profile_lock_key}")
 
     aliases_lock_key = f"aliases:{query_id}.lock"
     aliases_unique_value = "{}:{}".format(aliases_lock_key, get_unix_microseconds())
     try:
         # Try acquiring the lock (with a timeout of 30 seconds)
         if await RedisClient.acquire_lock(aliases_lock_key, aliases_unique_value, lock_timeout=30):
-            logging.debug(f"Lock acquired for key: {aliases_lock_key}")
+            # logging.debug(f"Lock acquired for key: {aliases_lock_key}")
             redis_client = await RedisClient.get_instance()
             # Save the empty query_id to [profile_key], and profile_key only have updated_at
             alias_cache_key = f"aliases:{query_id}"
             await redis_client.set(alias_cache_key, profile_cache_key, ex=final_expire_window)
-            logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
+            # logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
         else:
             logging.warning(f"Could not acquire lock for key: {aliases_lock_key}")
 
     finally:
         # Always release the lock after the critical section is done
         await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
-        logging.debug(f"Lock released for key: {aliases_lock_key}")
+        # logging.debug(f"Lock released for key: {aliases_lock_key}")
 
 async def set_farcaster_profile_to_cache(cache_identity_record: IdentityRecordSimplified, expire_window):
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
@@ -738,7 +736,7 @@ async def set_farcaster_profile_to_cache(cache_identity_record: IdentityRecordSi
     try:
         # Try acquiring the lock (with a timeout of 30 seconds)
         if await RedisClient.acquire_lock(profile_lock_key, profile_unique_value, lock_timeout=30):
-            logging.debug(f"Lock acquired for key: {profile_lock_key}")
+            # logging.debug(f"Lock acquired for key: {profile_lock_key}")
             # Set the current time as 'updated_at' in "yyyy-mm-dd HH:MM:SS" format
             cache_identity_record.updated_at = datetime.now()
             profile_value_json = strawberry_type_to_jsonstr(cache_identity_record)
@@ -746,14 +744,14 @@ async def set_farcaster_profile_to_cache(cache_identity_record: IdentityRecordSi
             # Set the cache in Redis with the specified expiration time (in seconds)
             redis_client = await RedisClient.get_instance()
             await redis_client.set(profile_cache_key, profile_value_json, ex=final_expire_window)
-            logging.debug(f"Cache updated for key: {profile_cache_key}")
+            # logging.debug(f"Cache updated for key: {profile_cache_key}")
         else:
             logging.warning(f"Could not acquire lock for key: {profile_lock_key}")
 
     finally:
         # Always release the lock after the critical section is done
         await RedisClient.release_lock(profile_lock_key, profile_unique_value)
-        logging.debug(f"Lock released for key: {profile_lock_key}")
+        # logging.debug(f"Lock released for key: {profile_lock_key}")
 
     if len(cache_identity_record.aliases) == 0:
         return
@@ -763,20 +761,20 @@ async def set_farcaster_profile_to_cache(cache_identity_record: IdentityRecordSi
     try:
         # Try acquiring the lock (with a timeout of 30 seconds)
         if await RedisClient.acquire_lock(aliases_lock_key, aliases_unique_value, lock_timeout=30):
-            logging.debug(f"Lock acquired for key: {aliases_lock_key}")
+            # logging.debug(f"Lock acquired for key: {aliases_lock_key}")
             redis_client = await RedisClient.get_instance()
             for alias in cache_identity_record.aliases:
                 alias_cache_key = f"aliases:{alias}"
                 # Save the mapping from[alias_key] to [real profile_key]
                 await redis_client.set(alias_cache_key, profile_cache_key, ex=final_expire_window)
-            logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
+            # logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
         else:
             logging.warning(f"Could not acquire lock for key: {aliases_lock_key}")
 
     finally:
         # Always release the lock after the critical section is done
         await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
-        logging.debug(f"Lock released for key: {aliases_lock_key}")
+        # logging.debug(f"Lock released for key: {aliases_lock_key}")
 
 async def batch_query_profile_by_fids_db(fids) -> typing.List[IdentityRecordSimplified]:
     # No need to select fields anymore, just query all fields
@@ -895,7 +893,7 @@ async def batch_query_profile_by_fids_db(fids) -> typing.List[IdentityRecordSimp
 
 async def query_and_update_missing_query_ids(query_ids):
     fids = await get_fids_by_input(query_ids)
-    logging.debug("query_and_update_missing_query_ids input %s turn to fids: %s", query_ids, fids)
+    # logging.debug("query_and_update_missing_query_ids input %s turn to fids: %s", query_ids, fids)
     identity_records = await batch_query_profile_by_fids_db(fids)
     # need cache where query_id is not in storage to avoid frequency access db
 
@@ -942,7 +940,7 @@ async def query_farcaster_profile_by_ids_cache(info, identities, require_cache=F
     if require_cache is False:
         # query data from db and return immediately
         fids = await get_fids_by_input(filter_query_ids)
-        logging.debug("query_farcaster_profile_by_ids_cache filter_query_ids %s turn to fids: %s", filter_query_ids, fids)
+        logging.info("farcaster filter_query_ids %s turn to fids: %s", filter_query_ids, fids)
         identity_records = await batch_query_profile_by_fids_db(fids)
         return identity_records
 
@@ -951,19 +949,19 @@ async def query_farcaster_profile_by_ids_cache(info, identities, require_cache=F
     require_update_ids, \
     missing_query_ids = await get_farcaster_profile_from_cache(filter_query_ids, expire_window=12*3600)
 
-    logging.debug("query_farcaster_profile_by_ids_cache input filter_query_ids: {}".format(filter_query_ids))
-    logging.debug("query_farcaster_profile_by_ids_cache missing_query_ids: {}".format(missing_query_ids))
-    logging.debug("query_farcaster_profile_by_ids_cache require_update_ids: {}".format(require_update_ids))
-    logging.debug("query_farcaster_profile_by_ids_cache cache_identity_records: {}".format(len(cache_identity_records)))
+    logging.info("farcaster input filter_query_ids: {}".format(filter_query_ids))
+    # logging.debug("farcaster missing_query_ids: {}".format(missing_query_ids))
+    # logging.debug("farcaster require_update_ids: {}".format(require_update_ids))
+    # logging.debug("farcaster cache_identity_records: {}".format(len(cache_identity_records)))
 
     final_identity_records = cache_identity_records.copy()
     if missing_query_ids:
-        logging.info("missing data")
+        logging.info("farcaster missing data {}".format(missing_query_ids))
         missing_identity_records = await query_and_update_missing_query_ids(missing_query_ids)
         final_identity_records.extend(missing_identity_records)
 
     if require_update_ids:
-        logging.info("has olddata and return immediately")
+        logging.info("farcaster has olddata and return immediately {}".format(require_update_ids))
         # Update background
         asyncio.create_task(query_and_update_missing_query_ids(require_update_ids))
 

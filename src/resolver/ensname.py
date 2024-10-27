@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:32:53
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-26 03:11:48
+LastEditTime: 2024-10-27 23:08:39
 FilePath: /data_service/src/resolver/ensname.py
 Description: 
 '''
@@ -273,7 +273,7 @@ async def query_profile_by_ensnames(info, names):
     if len(names) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
 
-    logging.debug("query_profile_by_ensnames %s", names)
+    # logging.debug("query_profile_by_ensnames %s", names)
     checked_names = []
     for name in names:
         if name.find('.') != -1:
@@ -500,11 +500,11 @@ async def get_ensname_profile_from_cache(query_ids, expire_window):
                     if now - updated_at_datetime > timedelta(seconds=expire_window):
                         if len(profile_value_dict) == 1:
                             # only have one field(updated_at) is also not exist
-                            logging.debug(f"Cache key {profile_cache_key} is empty. Returning old data, but marking for update.")
+                            # logging.debug(f"Cache key {profile_cache_key} is empty. Returning old data, but marking for update.")
                             require_update_ids.append(profile_cache_key.removeprefix("profile:"))
                         else:
                             # Old data is returned, but it needs to be updated
-                            logging.debug(f"Cache key {profile_cache_key} is expired. Returning old data, but marking for update.")
+                            # logging.debug(f"Cache key {profile_cache_key} is expired. Returning old data, but marking for update.")
                             require_update_ids.append(profile_cache_key.removeprefix("profile:"))
                             identity_record = convert_cache_to_identity_record(profile_value_dict)
                             if identity_record:
@@ -512,9 +512,10 @@ async def get_ensname_profile_from_cache(query_ids, expire_window):
                     else:
                         if len(profile_value_dict) == 1:
                             # only have one field(updated_at) is also not exist
-                            logging.debug(f"Cache key {profile_cache_key} is empty but has been caching.")
+                            # logging.debug(f"Cache key {profile_cache_key} is empty but has been caching.")
+                            continue
                         else:
-                            logging.debug(f"Cache key {profile_cache_key} has been caching.")
+                            # logging.debug(f"Cache key {profile_cache_key} has been caching.")
                             identity_record = convert_cache_to_identity_record(profile_value_dict)
                             if identity_record:
                                 cache_identity_records.append(identity_record)
@@ -526,7 +527,7 @@ async def get_ensname_profile_from_cache(query_ids, expire_window):
 
 async def set_ensname_empty_profile_to_cache(query_id, empty_record, expire_window):
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
-    random_offset = 0
+    # random_offset = 0
     final_expire_window = expire_window + random_offset
 
     profile_cache_key = f"profile:{query_id}"  # e.g. profile:lens,#notexist_profile_id which is not exist
@@ -536,7 +537,7 @@ async def set_ensname_empty_profile_to_cache(query_id, empty_record, expire_wind
     try:
         # Try acquiring the lock (with a timeout of 30 seconds)
         if await RedisClient.acquire_lock(profile_lock_key, profile_unique_value, lock_timeout=30):
-            logging.debug(f"Lock acquired for key: {profile_lock_key}")
+            # logging.debug(f"Lock acquired for key: {profile_lock_key}")
             # Set the current time as 'updated_at' in "yyyy-mm-dd HH:MM:SS" format
             empty_record["updated_at"] = get_current_time_string()
             profile_value_json = json.dumps(empty_record)
@@ -544,18 +545,18 @@ async def set_ensname_empty_profile_to_cache(query_id, empty_record, expire_wind
             # Set the cache in Redis with the specified expiration time (in seconds)
             redis_client = await RedisClient.get_instance()
             await redis_client.set(profile_cache_key, profile_value_json, ex=final_expire_window)
-            logging.debug(f"Cache updated for key: {profile_cache_key}")
+            # logging.debug(f"Cache updated for key: {profile_cache_key}")
         else:
             logging.warning(f"Could not acquire lock for key: {profile_lock_key}")
 
     finally:
         # Always release the lock after the critical section is done
         await RedisClient.release_lock(profile_lock_key, profile_unique_value)
-        logging.debug(f"Lock released for key: {profile_lock_key}")
+        # logging.debug(f"Lock released for key: {profile_lock_key}")
 
 async def set_ensname_profile_to_cache(cache_identity_record: IdentityRecordSimplified, expire_window):
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
-    random_offset = 0
+    # random_offset = 0
     final_expire_window = expire_window + random_offset
 
     primary_id = cache_identity_record.id
@@ -566,7 +567,7 @@ async def set_ensname_profile_to_cache(cache_identity_record: IdentityRecordSimp
     try:
         # Try acquiring the lock (with a timeout of 30 seconds)
         if await RedisClient.acquire_lock(profile_lock_key, profile_unique_value, lock_timeout=30):
-            logging.debug(f"Lock acquired for key: {profile_lock_key}")
+            # logging.debug(f"Lock acquired for key: {profile_lock_key}")
             # Set the current time as 'updated_at' in "yyyy-mm-dd HH:MM:SS" format
             cache_identity_record.updated_at = datetime.now()
             profile_value_json = strawberry_type_to_jsonstr(cache_identity_record)
@@ -574,22 +575,22 @@ async def set_ensname_profile_to_cache(cache_identity_record: IdentityRecordSimp
             # Set the cache in Redis with the specified expiration time (in seconds)
             redis_client = await RedisClient.get_instance()
             await redis_client.set(profile_cache_key, profile_value_json, ex=final_expire_window)
-            logging.debug(f"Cache updated for key: {profile_cache_key}")
+            # logging.debug(f"Cache updated for key: {profile_cache_key}")
         else:
             logging.warning(f"Could not acquire lock for key: {profile_lock_key}")
 
     finally:
         # Always release the lock after the critical section is done
         await RedisClient.release_lock(profile_lock_key, profile_unique_value)
-        logging.debug(f"Lock released for key: {profile_lock_key}")
+        # logging.debug(f"Lock released for key: {profile_lock_key}")
 
 async def batch_query_profile_by_ensname_db(query_ids) -> typing.List[IdentityRecordSimplified]:
     checked_names = []
     for _id in query_ids:
         identity = _id.split(",")[1]
         checked_names.append(identity)
-    
-    logging.debug("checked_names %s", checked_names)
+
+    # logging.debug("checked_names %s", checked_names)
 
     profile_fields = get_ensname_fields()
     profile_dict = {}
@@ -684,7 +685,7 @@ async def batch_query_profile_by_ensname_db(query_ids) -> typing.List[IdentityRe
     return result
 
 async def query_and_update_missing_query_ids(query_ids):
-    logging.debug("query_and_update_missing_query_ids input %s", query_ids)
+    # logging.debug("query_and_update_missing_query_ids input %s", query_ids)
     identity_records = await batch_query_profile_by_ensname_db(query_ids)
     # need cache where query_id is not in storage to avoid frequency access db
 
@@ -719,7 +720,7 @@ async def query_ensname_profile_by_ids_cache(info, identities, require_cache=Fal
     identity_records = []
     if require_cache is False:
         # query data from db and return immediately
-        logging.debug("batch query ensname input %s", filter_query_ids)
+        logging.info("batch query ensname input %s", filter_query_ids)
         identity_records = await batch_query_profile_by_ensname_db(filter_query_ids)
         return identity_records
 
@@ -728,19 +729,19 @@ async def query_ensname_profile_by_ids_cache(info, identities, require_cache=Fal
     require_update_ids, \
     missing_query_ids = await get_ensname_profile_from_cache(filter_query_ids, expire_window=12*3600)
 
-    logging.debug("batch query ensname input filter_query_ids: {}".format(filter_query_ids))
-    logging.debug("batch query ensname missing_query_ids: {}".format(missing_query_ids))
-    logging.debug("batch query ensname require_update_ids: {}".format(require_update_ids))
-    logging.debug("batch query ensname cache_identity_records: {}".format(len(cache_identity_records)))
+    logging.info("ensname input filter_query_ids: {}".format(filter_query_ids))
+    # logging.debug("ensname missing_query_ids: {}".format(missing_query_ids))
+    # logging.debug("ensname require_update_ids: {}".format(require_update_ids))
+    # logging.debug("ensname cache_identity_records: {}".format(len(cache_identity_records)))
 
     final_identity_records = cache_identity_records.copy()
     if missing_query_ids:
-        logging.info("missing data")
+        logging.info("ensname missing data {}".format(missing_query_ids))
         missing_identity_records = await query_and_update_missing_query_ids(missing_query_ids)
         final_identity_records.extend(missing_identity_records)
 
     if require_update_ids:
-        logging.info("has olddata and return immediately")
+        logging.info("ensname has olddata and return immediately {}".format(require_update_ids))
         # Update background
         asyncio.create_task(query_and_update_missing_query_ids(require_update_ids))
 

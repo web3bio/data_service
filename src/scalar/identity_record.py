@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:59:57
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-25 17:26:51
+LastEditTime: 2024-10-27 22:30:53
 FilePath: /data_service/src/scalar/identity_record.py
 Description: 
 '''
@@ -43,6 +43,9 @@ class IdentityRecord:
 
     @strawberry.field
     async def identity_graph(self, info: Info) -> typing.Optional[IdentityGraph]:
-        from resolver.identity_graph import find_identity_graph
-        logging.debug("Querying for identityGraph for identity: %s", self.identity)
-        return await find_identity_graph(info, self.platform.value, self.identity)
+        # from resolver.identity_graph import find_identity_graph
+        # logging.debug("Querying for identityGraph for identity: %s", self.identity)
+        # return await find_identity_graph(info, self.platform.value, self.identity)
+        from resolver.identity_graph import find_identity_graph_cache
+        logging.debug("Querying(With Cache) for identityGraph for identity: %s", self.identity)
+        return await find_identity_graph_cache(info, self.platform.value, self.identity, require_cache=True)
