@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:32:53
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-28 00:27:22
+LastEditTime: 2024-10-28 01:45:23
 FilePath: /data_service/src/resolver/ensname.py
 Description: 
 '''
@@ -609,7 +609,7 @@ async def batch_query_profile_by_ensname_db(query_ids) -> typing.List[IdentityRe
             name = profile_record.name
             if name is None:
                 continue
-            
+
             resolved_addresses = []
             owner_addresses = []
             owner = profile_record.owner

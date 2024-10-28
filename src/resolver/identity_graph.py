@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 03:10:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-27 23:19:04
+LastEditTime: 2024-10-28 02:18:24
 FilePath: /data_service/src/resolver/identity_graph.py
 Description: 
 '''
@@ -96,6 +96,13 @@ async def find_identity_graph_cache(info, self_platform, self_identity, require_
 
     vertices = batch_fetch_all(info, vertices_map)
 
+    # vertices, fetching_edges = batch_fetch_all(info, vertices_map)
+    # TODO: return identity_record, and connection_record
+    # IF edges is not equal to new connection_record
+    # upgrade graph_result and update cache
+    # It is mainly used to solve the problem caused by ens Hold/Resolve mismatch. 
+    # This kind of `ENS` identity will not appear in the results of IdentityGraph.
+
     identity_graph = IdentityGraph(graph_id=graph_id, vertices=vertices, edges=edges)
     return identity_graph
 
@@ -159,7 +166,14 @@ async def get_identity_graph_from_cache(self_platform, self_identity, expire_win
         return False, None
 
 async def set_identity_graph_to_cache(self_platform, self_identity, graph_result, expire_window):
-    graph_id = graph_result["graph_id"]
+    # graph_id = graph_result["graph_id"]
+    graph_id = graph_result.get("graph_id", None)
+    if graph_id is None:
+        logging.warning("Could not set {},{} to cache {}".format(self_platform, self_identity, graph_result))
+        return
+    if graph_id == "":
+        logging.warning("Could not set {},{} to cache(graph_id is empty) {}".format(self_platform, self_identity, graph_result))
+        return
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
     random_offset = 0
     final_expire_window = expire_window + random_offset
