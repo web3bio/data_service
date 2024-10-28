@@ -4,10 +4,11 @@
 Author: Zella Zhong
 Date: 2024-10-14 22:40:16
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-14 23:17:29
+LastEditTime: 2024-10-25 01:58:57
 FilePath: /data_service/src/cache/redis.py
 Description: 
 '''
+import logging
 import aioredis
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -28,10 +29,36 @@ class RedisClient:
         return cls._instance
 
     @classmethod
-    async def close(cls):
-        if cls._instance is not None:
-            await cls._instance.close()
-            cls._instance = None
+    async def acquire_lock(cls, key: str, unique_value: str, lock_timeout: int = 10) -> bool:
+        redis_client = await cls.get_instance()
+        # Try to set the lock using SETNX with the passed unique value
+        lock_acquired = await redis_client.setnx(key, unique_value)
+        if lock_acquired:
+            # Set an expiration time on the lock (to avoid stale locks)
+            await redis_client.expire(key, lock_timeout)
+            return True  # Lock successfully acquired
+        return False  # Lock was not acquired
+
+    @classmethod
+    async def release_lock(cls, key: str, unique_value: str):
+        redis_client = await cls.get_instance()
+
+        # Lua script to ensure atomic check-and-delete operation
+        release_script = """
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+            return redis.call("del", KEYS[1])
+        else
+            return 0
+        end
+        """
+
+        # Attempt to release the lock only if the stored value matches the unique_value
+        result = await redis_client.eval(release_script, 1, key, unique_value)  # Adjusted to pass keys and args
+        if result == 1:
+            logging.debug("Lock released for key: %s", key)
+        else:
+            logging.warning("Lock release failed for key: %s, value did not match", key)
+
 
 @asynccontextmanager
 async def get_redis_client() -> AsyncGenerator[aioredis.Redis, None]:

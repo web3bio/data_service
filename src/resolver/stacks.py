@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:25:11
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-16 16:30:33
+LastEditTime: 2024-10-27 20:33:18
 FilePath: /data_service/src/resolver/stacks.py
 Description: 
 '''
@@ -32,8 +32,11 @@ QUERY_MAX_LIMIT = 200
 
 
 async def query_profile_by_single_stacks(info, address):
+    address_primary_id = f"{Platform.stacks.value},{address}"
+    aliases = [address_primary_id]
     identity_record = IdentityRecord(
-        id=f"{Platform.stacks.value},{address}",
+        id=address_primary_id,
+        aliases=aliases,
         identity=address,
         platform=Platform.stacks,
         network=Network.stacks,
@@ -50,8 +53,11 @@ async def query_profile_by_stacks_addresses(info, addresses):
     logging.debug("query_profile_by_stacks_addresses %s", addresses)
     result = []
     for addr in addresses:
+        address_primary_id = f"{Platform.stacks.value},{addr}"
+        aliases = [address_primary_id]
         result.append(IdentityRecordSimplified(
-            id=f"{Platform.stacks.value},{addr}",
+            id=address_primary_id,
+            aliases=aliases,
             identity=addr,
             platform=Platform.stacks,
             network=Network.stacks,

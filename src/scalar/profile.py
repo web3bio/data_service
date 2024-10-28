@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:39:33
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-09 14:49:54
+LastEditTime: 2024-10-28 00:25:37
 FilePath: /data_service/src/scalar/profile.py
 Description: 
 '''
@@ -23,7 +23,7 @@ class SocialProfile:
     uid: str = ""
     following: typing.Optional[int] = 0
     follower: typing.Optional[int] = 0
-    update_at: typing.Optional[datetime] = None
+    updated_at: typing.Optional[datetime] = None
 
 
 @strawberry.type

@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-21 15:36:12
+LastEditTime: 2024-10-27 20:53:55
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -14,9 +14,10 @@ import json
 import logging
 import strawberry
 
+from jwt.exceptions import ExpiredSignatureError, DecodeError, InvalidTokenError
 from pydantic import typing
 from typing import Annotated, Union
-from typing import Optional, List, TypeVar, Generic
+from typing import Optional, List, TypeVar, Generic, Mapping
 from fastapi import HTTPException
 
 from strawberry.types import Info
@@ -30,7 +31,7 @@ from scalar.error import PlatformNotSupport
 import setting
 from cache.redis import RedisClient
 
-from resolver.fetch import batch_fetch, single_fetch, batch_fetch_all
+from resolver.fetch import single_fetch, batch_fetch_all
 
 from scalar.platform import Platform
 from scalar.identity_record import IdentityRecord
@@ -44,6 +45,7 @@ class RateLimitPermission(BasePermission):
         # Global Redis instance
         redis_client = await RedisClient.get_instance()
         bearer_token = info.context["request"].headers.get("Authorization")
+
         # Remove "Bearer " prefix from the token if present
         token = None
         if bearer_token is not None:
@@ -109,6 +111,7 @@ class RateLimitPermission(BasePermission):
     async def validate_token(self, token):
         try:
             # Validate the token
+            logging.debug("setting.AUTHENTICATE[secret] %s", setting.AUTHENTICATE["secret"])
             payload = jwt.decode(token, setting.AUTHENTICATE["secret"], algorithms=['HS256'])
             return True  # Token is valid
         except jwt.ExpiredSignatureError:
@@ -162,10 +165,10 @@ class Query:
     async def identities(self, info: Info, ids: List[str]) -> List[IdentityRecordSimplified]:
         # only select profile, ignore identity_graph
         logging.debug("Query by identities batch fetch(identities=%s)", json.dumps(ids))
-        vertices_setmap = {}
+        vertices_map = {}
         for row in ids:
             item = row.split(",")
-            if len(item) < 2:
+            if len(item) != 2:
                 continue
 
             _platform = item[0]
@@ -173,20 +176,16 @@ class Query:
             if _platform not in Platform.__members__:
                 continue
 
-            if _platform not in vertices_setmap:
-                vertices_setmap[_platform] = set()
+            if _platform not in vertices_map:
+                vertices_map[_platform] = []
 
-            vertices_setmap[_platform].add(_identity)
+            vertices_map[_platform].append(_identity)
+            # vertices_map[_platform].append(row)
 
-        vertices_map = {}
-        for k, v in vertices_setmap.items():
-            vertices_map[k] = list(v)
         result = await batch_fetch_all(info, vertices_map)
         return result
 
     @strawberry.field(permission_classes=[RateLimitPermission])
     async def identity(self, info: Info, platform: Platform, identity: str) -> Optional[IdentityRecord]:
-        # redis_client = await RedisClient.get_instance()
-        # redis_value = await redis_client.get("some_key")
         logging.debug("Query by identities(platform=%s, identity=%s)", platform, json.dumps(identity))
         return await single_fetch(info, platform, identity)

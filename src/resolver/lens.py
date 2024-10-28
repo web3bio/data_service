@@ -4,21 +4,29 @@
 Author: Zella Zhong
 Date: 2024-10-07 01:31:36
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-15 16:38:40
+LastEditTime: 2024-10-28 00:28:20
 FilePath: /data_service/src/resolver/lens.py
 Description: 
 '''
+import asyncio
+import copy
+import json
+import random
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.inspection import inspect
 from sqlalchemy import select, update, and_, or_
 from sqlalchemy.orm import load_only
 from urllib.parse import unquote
+from pydantic import typing
 
 from session import get_session
 from model.lens import LensV2Profile, LensV2Social
+from cache.redis import RedisClient
 
-from utils import check_evm_address, convert_camel_case
+from utils import convert_camel_case
+from utils.address import is_ethereum_address, is_base58_solana_address
+from utils.timeutils import get_unix_microseconds, parse_time_string, get_current_time_string
 
 from scalar.platform import Platform
 from scalar.network import Network, Address, CoinTypeMap
@@ -26,6 +34,7 @@ from scalar.identity_graph import IdentityRecordSimplified
 from scalar.identity_record import IdentityRecord
 from scalar.profile import Profile, SocialProfile
 from scalar.error import EmptyInput, ExceedRangeInput
+from scalar.type_convert import strawberry_type_to_jsonstr
 
 QUERY_MAX_LIMIT = 200
 
@@ -110,7 +119,7 @@ def get_lens_selected_fields(info):
                                                 social_fields.append("following")
                                             case "follower":
                                                 social_fields.append("follower")
-                                            case "update_at":
+                                            case "updated_at":
                                                 social_fields.append("update_time")
             case "graph_id":
                 continue
@@ -179,7 +188,7 @@ def get_lens_selected_fields(info):
                                                                 social_fields.append("following")
                                                             case "follower":
                                                                 social_fields.append("follower")
-                                                            case "update_at":
+                                                            case "updated_at":
                                                                 social_fields.append("update_time")
             case _:
                 continue
@@ -228,6 +237,16 @@ async def query_profile_by_single_lens_handle(info, name):
 
     if profile_record is None:
         return None
+    if profile_id is None:
+        return None
+
+    name = profile_record.get('name', None)
+    if name is None:
+        return None
+    
+    aliases = []
+    aliases.append("{},#{}".format(Platform.lens.value, profile_id))
+    aliases.append("{},{}".format(Platform.lens.value, name))
 
     network = None
     resolved_address = []
@@ -239,10 +258,7 @@ async def query_profile_by_single_lens_handle(info, name):
         resolved_address.append(Address(address=address, network=network))
         owner_address.append(Address(address=address, network=network))
         records.append(Address(address=address, network=network))
-
-    name = profile_record.get('name', None)
-    if name is None:
-        return None
+        aliases.append("{},{}".format(Platform.lens.value, address))
 
     texts = profile_record.get('texts', {})
     if texts:
@@ -275,7 +291,7 @@ async def query_profile_by_single_lens_handle(info, name):
             uid=profile_id,
             following=social_record.get('following', 0),
             follower=social_record.get('follower', 0),
-            update_at=social_record.get('update_time', None),
+            updated_at=social_record.get('update_time', None),
         )
         profile.social = social
 
@@ -300,7 +316,7 @@ async def query_profile_by_lens_handle(info, names):
     if len(names) > QUERY_MAX_LIMIT:
         return ExceedRangeInput(QUERY_MAX_LIMIT)
 
-    logging.debug("query_profile_by_lens_handle %s", names)
+    # logging.debug("query_profile_by_lens_handle %s", names)
     profile_fields,\
     social_fields = get_lens_selected_fields(info)
 
@@ -380,7 +396,7 @@ async def query_profile_by_lens_handle(info, names):
                         uid=profile_id,
                         following=social_info.get('following', 0),
                         follower=social_info.get('follower', 0),
-                        update_at=social_info.get('update_time', None),
+                        updated_at=social_info.get('update_time', None),
                     )
                     profile.social = social
 
@@ -398,3 +414,492 @@ async def query_profile_by_lens_handle(info, names):
             ))
 
     return result
+
+
+def get_lens_fields():
+    '''
+    description: retrieve all fields
+    return {*}
+    '''    
+    # Get all fields for each model using reflection
+    profile_fields = [getattr(LensV2Profile, c.key) for c in inspect(LensV2Profile).mapper.column_attrs]
+    social_fields = [getattr(LensV2Social, c.key) for c in inspect(LensV2Social).mapper.column_attrs]
+
+    return profile_fields, social_fields
+
+def convert_cache_to_identity_record(cache_value):
+    try:
+        if not cache_value:
+            return None
+        primary_id = cache_value.get('id', None)
+        if primary_id is None:
+            return None
+
+        # Convert resolved_address list of dictionaries to list of Address instances
+        resolved_address = [Address(**address) for address in cache_value.get("resolved_address", [])]
+
+        # Convert owner_address list of dictionaries to list of Address instances
+        owner_address = [Address(**address) for address in cache_value.get("owner_address", [])]
+
+        platform_str = cache_value.get("platform", None)
+        platform = Platform(platform_str) if platform_str else None
+
+        network_str = cache_value.get("network", None)
+        network = Network(network_str) if network_str else None
+
+        # Convert profile dictionary to Profile instance
+        profile_data = cache_value.get("profile", None)
+        profile = None
+        if profile_data:
+            addresses = [Address(**addr) for addr in profile_data.get("addresses", [])]
+            profile_platform_str = profile_data.get("platform", None)
+            profile_platform = Platform(profile_platform_str) if profile_platform_str else None
+
+            profile_network_str = profile_data.get("network", None)
+            profile_network = Network(profile_network_str) if profile_network_str else None
+            social_dict = profile_data.get("social", None)
+            social = None
+            if social_dict is not None:
+                social_updated_at_str = social_dict.get("updated_at", None)
+                social_updated_at = None
+                if social_updated_at_str is not None:
+                    social_updated_at = datetime.strptime(social_updated_at_str, "%Y-%m-%d %H:%M:%S") if social_updated_at_str else None
+                social = SocialProfile(
+                    uid=social_dict.get("uid", None),
+                    following=social_dict.get("following", 0),
+                    follower=social_dict.get("follower", 0),
+                    updated_at=social_updated_at,
+                )
+            profile = Profile(
+                uid=profile_data.get("uid"),
+                identity=profile_data.get("identity"),
+                platform=profile_platform,
+                network=profile_network,
+                address=profile_data.get("address"),
+                display_name=profile_data.get("display_name"),
+                avatar=profile_data.get("avatar"),
+                description=profile_data.get("description"),
+                contenthash=profile_data.get("contenthash"),
+                texts=profile_data.get("texts", {}),
+                addresses=addresses,
+                social=social,
+            )
+        
+        expired_at_str = cache_value.get("expired_at")
+        updated_at_str = cache_value.get("updated_at")
+
+        expired_at = datetime.strptime(expired_at_str, "%Y-%m-%d %H:%M:%S") if expired_at_str else None
+        updated_at = datetime.strptime(updated_at_str, "%Y-%m-%d %H:%M:%S") if updated_at_str else None
+
+        # Return the IdentityRecord instance
+        return IdentityRecord(
+            id=cache_value.get("id"),
+            aliases=cache_value.get("aliases"),
+            identity=cache_value.get("identity"),
+            platform=platform,
+            network=network,
+            primary_name=cache_value.get("primary_name"),
+            is_primary=cache_value.get("is_primary"),
+            resolved_address=resolved_address,
+            owner_address=owner_address,
+            expired_at=expired_at,
+            updated_at=updated_at,
+            profile=profile,
+        )
+
+    except Exception as ex:
+        logging.exception(ex)
+        return None
+
+async def get_lens_profile_from_cache(query_ids, expire_window):
+    '''
+    description: 
+    return {
+        cache_identity_records: List[IdentityRecordSimplified],
+        require_update_ids: List[str], # which exist in cache but expired (return old data first to speed up response)
+        missing_query_ids: List[str],  # which not exist in cache, must query_from_db
+    }
+    '''
+    try:
+        require_update_ids = []
+        missing_query_ids = []
+        cache_identity_records = []
+        redis_client = await RedisClient.get_instance()
+
+        aliases_keys = []
+        for query_id in query_ids:
+            aliases_keys.append(f"aliases:{query_id}")
+        aliases_keys = list(set(aliases_keys))
+        aliases_values = await redis_client.mget(*aliases_keys)
+        aliases_cache_item = dict(zip(aliases_keys, aliases_values))
+
+        profile_map_aliases_key = {}
+        for alias_cache_key_bytes, profile_cache_key_bytes in aliases_cache_item.items():
+            alias_cache_key = alias_cache_key_bytes.decode("utf-8") if isinstance(alias_cache_key_bytes, bytes) else alias_cache_key_bytes
+            profile_cache_key = profile_cache_key_bytes.decode("utf-8") if profile_cache_key_bytes is not None else None
+
+            if profile_cache_key is None:
+                missing_query_ids.append(alias_cache_key.removeprefix("aliases:"))
+            else:
+                if profile_cache_key not in profile_map_aliases_key:
+                    profile_map_aliases_key[profile_cache_key] = []
+                profile_map_aliases_key[profile_cache_key].append(alias_cache_key.removeprefix("aliases:"))
+
+        profile_cache_keys = list(profile_map_aliases_key.keys())
+        if profile_cache_keys:
+            profile_json_values = await redis_client.mget(*profile_cache_keys)
+            profile_cache_json_values = dict(zip(profile_cache_keys, profile_json_values))
+            for profile_cache_key_bytes, profile_json_value_bytes in profile_cache_json_values.items():
+                profile_cache_key = profile_cache_key_bytes.decode("utf-8") if isinstance(profile_cache_key_bytes, bytes) else profile_cache_key_bytes
+                profile_json_value = profile_json_value_bytes.decode("utf-8") if profile_json_value_bytes is not None else None
+
+                if profile_json_value is None:
+                    # add aliases:platform,alias_value to missing_query_ids
+                    missing_query_ids.append(profile_cache_key.removeprefix("profile:"))
+                    missing_aliases_ids = profile_map_aliases_key.get(profile_cache_key, [])
+                    missing_query_ids.extend(missing_aliases_ids)
+                else:
+                    profile_value_dict = json.loads(profile_json_value)
+                    updated_at = profile_value_dict.get("updated_at", None)
+                    if not updated_at:
+                        logging.warning(f"Cache key {profile_cache_key} is missing 'updated_at'. Marking for update.")
+                        missing_query_ids.append(profile_cache_key.removeprefix("profile:"))
+                    else:
+                        updated_at_datetime = parse_time_string(updated_at)
+                        now = datetime.now()
+                        # Compare now and updated_at, if value is expired in window
+                        if now - updated_at_datetime > timedelta(seconds=expire_window):
+                            
+                            if len(profile_value_dict) == 1:
+                                # only have one field(updated_at) is also not exist
+                                # logging.debug(f"Cache key {profile_cache_key} is empty. Returning old data, but marking for update.")
+                                require_update_ids.append(profile_cache_key.removeprefix("profile:"))
+                            else:
+                                # Old data is returned, but it needs to be updated
+                                # logging.debug(f"Cache key {profile_cache_key} is expired. Returning old data, but marking for update.")
+                                require_update_ids.append(profile_cache_key.removeprefix("profile:"))
+                                identity_record = convert_cache_to_identity_record(profile_value_dict)
+                                if identity_record:
+                                    cache_identity_records.append(identity_record)
+                        else:
+                            if len(profile_value_dict) == 1:
+                                # only have one field(updated_at) is also not exist
+                                # logging.debug(f"Cache key {profile_cache_key} is empty but has been caching.")
+                                continue
+                            else:
+                                # logging.debug(f"Cache key {profile_cache_key} has been caching.")
+                                identity_record = convert_cache_to_identity_record(profile_value_dict)
+                                if identity_record:
+                                    cache_identity_records.append(identity_record)
+
+        return cache_identity_records, require_update_ids, missing_query_ids
+    except Exception as ex:
+        logging.exception(ex)
+        # if cache logic is failed, just return query_from_db immediately
+        return [], [], query_ids
+
+async def set_lens_empty_profile_to_cache(query_id, empty_record, expire_window):
+    # random_offset = 0
+    random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
+    final_expire_window = expire_window + random_offset
+
+    profile_cache_key = f"profile:{query_id}"  # e.g. profile:lens,#notexist_profile_id which is not exist
+    profile_lock_key = f"{query_id}.lock"
+
+    profile_unique_value = "{}:{}".format(profile_lock_key, get_unix_microseconds())
+    try:
+        # Try acquiring the lock (with a timeout of 30 seconds)
+        if await RedisClient.acquire_lock(profile_lock_key, profile_unique_value, lock_timeout=30):
+            # logging.debug(f"Lock acquired for key: {profile_lock_key}")
+            # Set the current time as 'updated_at' in "yyyy-mm-dd HH:MM:SS" format
+            empty_record["updated_at"] = get_current_time_string()
+            profile_value_json = json.dumps(empty_record)
+
+            # Set the cache in Redis with the specified expiration time (in seconds)
+            redis_client = await RedisClient.get_instance()
+            await redis_client.set(profile_cache_key, profile_value_json, ex=final_expire_window)
+            # logging.debug(f"Cache updated for key: {profile_cache_key}")
+        else:
+            logging.warning(f"Could not acquire lock for key: {profile_lock_key}")
+
+    finally:
+        # Always release the lock after the critical section is done
+        await RedisClient.release_lock(profile_lock_key, profile_unique_value)
+        # logging.debug(f"Lock released for key: {profile_lock_key}")
+
+    aliases_lock_key = f"aliases:{query_id}.lock"
+    aliases_unique_value = "{}:{}".format(aliases_lock_key, get_unix_microseconds())
+    try:
+        # Try acquiring the lock (with a timeout of 30 seconds)
+        if await RedisClient.acquire_lock(aliases_lock_key, aliases_unique_value, lock_timeout=30):
+            # logging.debug(f"Lock acquired for key: {aliases_lock_key}")
+            redis_client = await RedisClient.get_instance()
+            # Save the empty query_id to [profile_key], and profile_key only have updated_at
+            alias_cache_key = f"aliases:{query_id}"
+            await redis_client.set(alias_cache_key, profile_cache_key, ex=final_expire_window)
+            # logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
+        else:
+            logging.warning(f"Could not acquire lock for key: {aliases_lock_key}")
+
+    finally:
+        # Always release the lock after the critical section is done
+        await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
+        # logging.debug(f"Lock released for key: {aliases_lock_key}")
+
+async def set_lens_profile_to_cache(cache_identity_record: IdentityRecordSimplified, expire_window):
+    # random_offset = 0
+    random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
+    final_expire_window = expire_window + random_offset
+
+    primary_id = cache_identity_record.id
+    profile_cache_key = f"profile:{primary_id}"  # e.g. profile:lens,zella.lens
+    profile_lock_key = f"{primary_id}.lock"
+
+    profile_unique_value = "{}:{}".format(profile_lock_key, get_unix_microseconds())
+    try:
+        # Try acquiring the lock (with a timeout of 30 seconds)
+        if await RedisClient.acquire_lock(profile_lock_key, profile_unique_value, lock_timeout=30):
+            # logging.debug(f"Lock acquired for key: {profile_lock_key}")
+            # Set the current time as 'updated_at' in "yyyy-mm-dd HH:MM:SS" format
+            cache_identity_record.updated_at = datetime.now()
+            profile_value_json = strawberry_type_to_jsonstr(cache_identity_record)
+
+            # Set the cache in Redis with the specified expiration time (in seconds)
+            redis_client = await RedisClient.get_instance()
+            await redis_client.set(profile_cache_key, profile_value_json, ex=final_expire_window)
+            # logging.debug(f"Cache updated for key: {profile_cache_key}")
+        else:
+            logging.warning(f"Could not acquire lock for key: {profile_lock_key}")
+
+    finally:
+        # Always release the lock after the critical section is done
+        await RedisClient.release_lock(profile_lock_key, profile_unique_value)
+        # logging.debug(f"Lock released for key: {profile_lock_key}")
+
+    if len(cache_identity_record.aliases) == 0:
+        return
+
+    aliases_lock_key = f"aliases:{primary_id}.lock"
+    aliases_unique_value = "{}:{}".format(aliases_lock_key, get_unix_microseconds())
+    try:
+        # Try acquiring the lock (with a timeout of 30 seconds)
+        if await RedisClient.acquire_lock(aliases_lock_key, aliases_unique_value, lock_timeout=30):
+            # logging.debug(f"Lock acquired for key: {aliases_lock_key}")
+            redis_client = await RedisClient.get_instance()
+            for alias in cache_identity_record.aliases:
+                alias_cache_key = f"aliases:{alias}"
+                # Save the mapping from[alias_key] to [real profile_key]
+                await redis_client.set(alias_cache_key, profile_cache_key, ex=final_expire_window)
+            # logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
+        else:
+            logging.warning(f"Could not acquire lock for key: {aliases_lock_key}")
+
+    finally:
+        # Always release the lock after the critical section is done
+        await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
+        # logging.debug(f"Lock released for key: {aliases_lock_key}")
+
+async def batch_query_profile_by_profile_ids_db(query_ids) -> typing.List[IdentityRecordSimplified]:
+    lens_profile_ids = []
+    lens_handles = []
+    lens_owners = []
+    for _id in query_ids:
+        identity = _id.split(",")[1]
+        if identity.startswith('#'):
+            lens_profile_ids.append(int(identity.removeprefix('#')))
+        else:
+            is_evm = is_ethereum_address(identity)
+            if is_evm:
+                lens_owners.append(identity)
+            else:
+                lens_handles.append(identity)
+
+    lens_profile_ids = list(set(lens_profile_ids))
+    lens_handles = list(set(lens_handles))
+    lens_owners = list(set(lens_owners))
+
+    # No need to select fields anymore, just query all fields
+    profile_fields,\
+    social_fields = get_lens_fields()
+
+    profile_dict = {}
+    social_dict = {}
+    result_profile_ids = []
+
+    async with get_session() as s:
+        filters = []
+        if lens_profile_ids:
+            filters.append(LensV2Profile.profile_id.in_(lens_profile_ids))
+        if lens_handles:
+            filters.append(LensV2Profile.name.in_(lens_handles))
+        if lens_owners:
+            filters.append(LensV2Profile.address.in_(lens_owners))
+
+        if filters:
+            filters_obj = or_(*filters)
+            profile_sql = select(LensV2Profile).options(
+                load_only(*profile_fields))\
+                .filter(filters_obj)
+            profile_result = await s.execute(profile_sql)
+            profile_records = profile_result.scalars().all()
+            for row in profile_records:
+                result_profile_ids.append(row.profile_id)
+                profile_dict[row.profile_id] = row
+
+        if result_profile_ids:
+            social_sql = select(LensV2Social).options(
+                load_only(*social_fields))\
+                .filter(LensV2Social.profile_id.in_(result_profile_ids))
+            social_result = await s.execute(social_sql)
+            social_records = social_result.scalars().all()
+            for row in social_records:
+                social_dict[row.profile_id] = row
+
+    result = []
+    for profile_id in result_profile_ids:
+        profile_record: LensV2Profile = profile_dict.get(profile_id, None)
+        name = profile_record.name
+        if name is None:
+            continue
+        
+        aliases = []
+        aliases.append("{},#{}".format(Platform.lens.value, profile_id))
+        aliases.append("{},{}".format(Platform.lens.value, name))
+        network = None
+        resolved_addresses = []
+        owner_addresses = []
+        records = []
+        address = profile_record.address
+        if address is not None:
+            network = Network.ethereum
+            resolved_addresses.append(Address(address=address, network=network))
+            owner_addresses.append(Address(address=address, network=network))
+            records.append(Address(address=address, network=network))
+            aliases.append("{},{}".format(Platform.lens.value, address))
+
+        texts = profile_record.texts
+        if texts:
+            texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
+        else:
+            texts = None
+
+        cover_picture = profile_record.cover_picture
+        if cover_picture is not None:
+            if texts is not None:
+                texts["header"] = cover_picture
+            else:
+                texts = {"header": cover_picture}
+
+        social = None
+        if profile_record is not None:
+            profile = Profile(
+                uid=profile_id,
+                identity=name,
+                platform=Platform.lens,
+                network=network,
+                address=address,
+                display_name=profile_record.display_name,
+                avatar=profile_record.avatar,
+                description=profile_record.description,
+                texts=texts,
+                addresses=records,
+                social=None,
+            )
+            if social_dict:
+                social_info = social_dict.get(profile_id, None)
+                if social_info:
+                    social = SocialProfile(
+                        uid=profile_id,
+                        following=social_info.following,
+                        follower=social_info.follower,
+                        updated_at=social_info.update_time,
+                    )
+                    profile.social = social
+            
+            result.append(IdentityRecordSimplified(
+                id=f"{Platform.lens.value},{name}",
+                aliases=aliases,
+                identity=name,
+                platform=Platform.lens,
+                network=network,
+                primary_name=None,
+                is_primary=profile_record.is_primary,
+                expired_at=None,
+                resolved_address=resolved_addresses,
+                owner_address=owner_addresses,
+                profile=profile
+            ))
+    return result
+
+async def query_and_update_missing_query_ids(query_ids):
+    # logging.debug("query_and_update_missing_query_ids input %s", query_ids)
+    identity_records = await batch_query_profile_by_profile_ids_db(query_ids)
+    # need cache where query_id is not in storage to avoid frequency access db
+
+    exists_query_ids = []
+    for record in identity_records:
+        exists_query_ids.extend(record.aliases)
+        asyncio.create_task(set_lens_profile_to_cache(record, expire_window=24*3600))
+
+    empty_query_ids = list(set(query_ids) - set(exists_query_ids))
+    for empty_query_id in empty_query_ids:
+        asyncio.create_task(set_lens_empty_profile_to_cache(empty_query_id, {}, expire_window=24*3600))
+
+    return identity_records
+
+def filter_lens_query_ids(identities):
+    final_query_ids = set()
+    for identity in identities:
+        if identity.startswith('#'):
+            try:
+                query_profile_id = int(copy.deepcopy(identity).removeprefix('#'))
+                final_query_ids.add(f"{Platform.lens.value},{identity}")
+            except:
+                continue
+        else:
+            is_evm = is_ethereum_address(identity)
+            if is_evm:
+                final_query_ids.add(f"{Platform.lens.value},{identity}")
+            else:
+                if 4 < len(identity) < 256:
+                    final_query_ids.add(f"{Platform.lens.value},{identity}")
+
+    return list(final_query_ids)
+
+async def query_lens_profile_by_ids_cache(info, identities, require_cache=False):
+    if len(identities) > QUERY_MAX_LIMIT:
+        return ExceedRangeInput(QUERY_MAX_LIMIT)
+
+    filter_query_ids = filter_lens_query_ids(identities)
+    if len(filter_query_ids) == 0:
+        return []
+
+    identity_records = []
+    if require_cache is False:
+        # query data from db and return immediately
+        logging.info("lens filter_input_ids %s", filter_query_ids)
+        identity_records = await batch_query_profile_by_profile_ids_db(filter_query_ids)
+        return identity_records
+
+    # require_cache is True:
+    cache_identity_records, \
+    require_update_ids, \
+    missing_query_ids = await get_lens_profile_from_cache(filter_query_ids, expire_window=12*3600)
+
+    logging.info("lens input filter_query_ids: {}".format(filter_query_ids))
+    # logging.debug("lens missing_query_ids: {}".format(missing_query_ids))
+    # logging.debug("lens require_update_ids: {}".format(require_update_ids))
+    # logging.debug("lens cache_identity_records: {}".format(len(cache_identity_records)))
+
+    final_identity_records = cache_identity_records.copy()
+    if missing_query_ids:
+        logging.info("lens missing data {}".format(missing_query_ids))
+        missing_identity_records = await query_and_update_missing_query_ids(missing_query_ids)
+        final_identity_records.extend(missing_identity_records)
+
+    if require_update_ids:
+        logging.info("lens has olddata and return immediately {}".format(require_update_ids))
+        # Update background
+        asyncio.create_task(query_and_update_missing_query_ids(require_update_ids))
+
+    return final_identity_records

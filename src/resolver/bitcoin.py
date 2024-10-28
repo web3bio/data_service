@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-12 16:23:07
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-16 16:25:46
+LastEditTime: 2024-10-27 20:30:43
 FilePath: /data_service/src/resolver/bitcoin.py
 Description: 
 '''
@@ -31,8 +31,11 @@ QUERY_MAX_LIMIT = 200
 
 
 async def query_profile_by_single_bitcoin(info, address):
+    address_primary_id = f"{Platform.bitcoin.value},{address}"
+    aliases = [address_primary_id]
     identity_record = IdentityRecord(
-        id=f"{Platform.bitcoin.value},{address}",
+        id=address_primary_id,
+        aliases=aliases,
         identity=address,
         platform=Platform.bitcoin,
         network=Network.bitcoin,
@@ -49,8 +52,11 @@ async def query_profile_by_bitcoin_addresses(info, addresses):
     logging.debug("query_profile_by_bitcoin_addresses %s", addresses)
     result = []
     for addr in addresses:
+        address_primary_id = f"{Platform.bitcoin.value},{addr}"
+        aliases = [address_primary_id]
         result.append(IdentityRecordSimplified(
-            id=f"{Platform.bitcoin.value},{addr}",
+            id=address_primary_id,
+            aliases=aliases,
             identity=addr,
             platform=Platform.bitcoin,
             network=Network.bitcoin,

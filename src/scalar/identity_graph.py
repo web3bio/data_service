@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:21:28
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-07 03:31:14
+LastEditTime: 2024-10-25 17:26:26
 FilePath: /data_service/src/scalar/identity_graph.py
 Description: 
 '''
@@ -23,6 +23,7 @@ from .data_source import DataSource
 @strawberry.type
 class IdentityRecordSimplified:
     id: str = ""
+    aliases: typing.List[str] = strawberry.field(default_factory=list)
     identity: str = ""
     platform: Platform
     network: typing.Optional[Network] = None
@@ -31,6 +32,7 @@ class IdentityRecordSimplified:
     resolved_address: typing.List[Address] = strawberry.field(default_factory=list)
     owner_address: typing.List[Address] = strawberry.field(default_factory=list)
     expired_at: typing.Optional[datetime] = None
+    updated_at: typing.Optional[datetime] = None
     profile: typing.Optional[Profile] = None
     # No identity_graph field to prevent further queries
 
