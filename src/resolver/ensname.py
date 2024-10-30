@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:32:53
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-30 14:01:13
+LastEditTime: 2024-10-30 15:09:56
 FilePath: /data_service/src/resolver/ensname.py
 Description: 
 '''
@@ -221,11 +221,14 @@ async def query_profile_by_single_ensname(info, name):
     description = None
     texts = profile_record.get('texts', {})
     if texts:
-        texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-        avatar = texts.get("avatar", None)
-        description = texts.get("description", None)
-        display_name = texts.get("name", name)
-    else:
+        # Filter out empty strings and decode non-empty texts
+        process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+        avatar = process_texts.get("avatar", None)
+        description = process_texts.get("description", None)
+        display_name = process_texts.get("name", name)
+        texts = process_texts
+
+    if not texts:
         texts = None
 
     resolved_records = profile_record.get('resolved_records', {})
@@ -322,11 +325,14 @@ async def query_profile_by_ensnames(info, names):
             description = None
             texts = profile_record.get('texts', {})
             if texts:
-                texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-                avatar = texts.get("avatar", None)
-                description = texts.get("description", None)
-                display_name = texts.get("name", name)
-            else:
+                # Filter out empty strings and decode non-empty texts
+                process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+                avatar = process_texts.get("avatar", None)
+                description = process_texts.get("description", None)
+                display_name = process_texts.get("name", name)
+                texts = process_texts
+
+            if not texts:
                 texts = None
 
             resolved_records = profile_record.get('resolved_records', {})
@@ -433,7 +439,7 @@ def convert_cache_to_identity_record(cache_value):
                 addresses=addresses,
                 social=social,
             )
-        
+
         expired_at_str = cache_value.get("expired_at")
         updated_at_str = cache_value.get("updated_at")
 
@@ -636,11 +642,14 @@ async def batch_query_profile_by_ensname_db(query_ids) -> typing.List[IdentityRe
             description = None
             texts = profile_record.texts
             if texts:
-                texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-                avatar = texts.get("avatar", None)
-                description = texts.get("description", None)
-                display_name = texts.get("name", name)
-            else:
+                # Filter out empty strings and decode non-empty texts
+                process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+                avatar = process_texts.get("avatar", None)
+                description = process_texts.get("description", None)
+                display_name = process_texts.get("name", name)
+                texts = process_texts
+
+            if not texts:
                 texts = None
 
             resolved_records = profile_record.resolved_records

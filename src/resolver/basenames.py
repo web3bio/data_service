@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-09-06 15:40:40
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-24 22:21:35
+LastEditTime: 2024-10-30 15:03:31
 FilePath: /data_service/src/resolver/basenames.py
 Description: 
 '''
@@ -209,11 +209,14 @@ async def query_profile_by_single_basenames(info, name):
     description = None
     texts = profile_record.get('texts', {})
     if texts:
-        texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-        avatar = texts.get("avatar", None)
-        description = texts.get("description", None)
-        display_name = texts.get("name", name)
-    else:
+        # Filter out empty strings and decode non-empty texts
+        process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+        avatar = process_texts.get("avatar", None)
+        description = process_texts.get("description", None)
+        display_name = process_texts.get("name", name)
+        texts = process_texts
+
+    if not texts:
         texts = None
 
     resolved_records = profile_record.get('resolved_records', {})
@@ -303,11 +306,14 @@ async def query_profile_by_basenames(info, names):
             description = None
             texts = profile_record.get('texts', {})
             if texts:
-                texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-                avatar = texts.get("avatar", None)
-                description = texts.get("description", None)
-                display_name = texts.get("name", name)
-            else:
+                # Filter out empty strings and decode non-empty texts
+                process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+                avatar = process_texts.get("avatar", None)
+                description = process_texts.get("description", None)
+                display_name = process_texts.get("name", name)
+                texts = process_texts
+
+            if not texts:
                 texts = None
 
             resolved_records = profile_record.get('resolved_records', {})

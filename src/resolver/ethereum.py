@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:41:34
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-28 00:27:27
+LastEditTime: 2024-10-30 15:10:26
 FilePath: /data_service/src/resolver/ethereum.py
 Description: 
 '''
@@ -210,11 +210,14 @@ async def query_profile_by_single_address(info, address):
     description = None
     texts = profile_record.get('texts', {})
     if texts:
-        texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-        avatar = texts.get("avatar", None)
-        description = texts.get("description", None)
-        display_name = texts.get("name", name)
-    else:
+        # Filter out empty strings and decode non-empty texts
+        process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+        avatar = process_texts.get("avatar", None)
+        description = process_texts.get("description", None)
+        display_name = process_texts.get("name", name)
+        texts = process_texts
+
+    if not texts:
         texts = None
 
     resolved_records = profile_record.get('resolved_records', {})
@@ -304,11 +307,14 @@ async def query_profile_by_addresses(info, addresses):
             description = None
             texts = profile_record.get('texts', {})
             if texts:
-                texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-                avatar = texts.get("avatar", None)
-                description = texts.get("description", None)
-                display_name = texts.get("name", name)
-            else:
+                # Filter out empty strings and decode non-empty texts
+                process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+                avatar = process_texts.get("avatar", None)
+                description = process_texts.get("description", None)
+                display_name = process_texts.get("name", name)
+                texts = process_texts
+
+            if not texts:
                 texts = None
 
             resolved_records = profile_record.get('resolved_records', {})
@@ -583,11 +589,14 @@ async def batch_query_profile_by_address_db(query_ids) -> typing.List[IdentityRe
             description = None
             texts = profile_record.texts
             if texts:
-                texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-                avatar = texts.get("avatar", None)
-                description = texts.get("description", None)
-                display_name = texts.get("name", name)
-            else:
+                # Filter out empty strings and decode non-empty texts
+                process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+                avatar = process_texts.get("avatar", None)
+                description = process_texts.get("description", None)
+                display_name = process_texts.get("name", name)
+                texts = process_texts
+
+            if not texts:
                 texts = None
 
             resolved_records = profile_record.resolved_records

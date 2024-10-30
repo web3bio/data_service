@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 01:31:36
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-30 14:47:59
+LastEditTime: 2024-10-30 15:08:13
 FilePath: /data_service/src/resolver/lens.py
 Description: 
 '''
@@ -262,8 +262,11 @@ async def query_profile_by_single_lens_handle(info, name):
 
     texts = profile_record.get('texts', {})
     if texts:
-        texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-    else:
+        # Filter out empty strings and decode non-empty texts
+        process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+        texts = process_texts
+
+    if not texts:
         texts = None
 
     cover_picture = profile_record.get('cover_picture', None)
@@ -363,8 +366,11 @@ async def query_profile_by_lens_handle(info, names):
 
         texts = profile_record.get('texts', {})
         if texts:
-            texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-        else:
+            # Filter out empty strings and decode non-empty texts
+            process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+            texts = process_texts
+
+        if not texts:
             texts = None
 
         cover_picture = profile_record.get('cover_picture', None)
@@ -847,8 +853,11 @@ async def batch_query_profile_by_profile_ids_db(query_ids) -> typing.List[Identi
 
         texts = profile_record.texts
         if texts:
-            texts = {key: unquote(text, 'utf-8') for key, text in texts.items()}
-        else:
+            # Filter out empty strings and decode non-empty texts
+            process_texts = {key: unquote(text, 'utf-8') for key, text in texts.items() if text != ""}
+            texts = process_texts
+
+        if not texts:
             texts = None
 
         cover_picture = profile_record.cover_picture
