@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 03:10:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-28 02:18:24
+LastEditTime: 2024-10-30 14:47:27
 FilePath: /data_service/src/resolver/identity_graph.py
 Description: 
 '''
@@ -48,7 +48,7 @@ async def find_identity_graph_cache(info, self_platform, self_identity, require_
     if require_cache is False:
         # query data from db and return immediately
         logging.info("identity_graph(no cache) input %s,%s", self_platform, self_identity)
-        graph_result = await get_identity_graph_from_graphdb(self_platform, self_identity)
+        is_exists, graph_result = await get_identity_graph_from_graphdb(self_platform, self_identity)
     else:
         require_update_later, graph_result = await get_identity_graph_from_cache(
             self_platform, self_identity, 12*3600)
@@ -60,7 +60,7 @@ async def find_identity_graph_cache(info, self_platform, self_identity, require_
             # Update background
             asyncio.create_task(get_and_update_missing_identity_graph(self_platform, self_identity))
         else:
-            logging.info("identity_graph has been cache. %s,%s", self_platform, self_identity)
+            logging.info("identity_graph has been cache. %s,%s [%s]", self_platform, self_identity, graph_result.get("graph_id"))
 
     if graph_result is None:
         return None
@@ -107,10 +107,10 @@ async def find_identity_graph_cache(info, self_platform, self_identity, require_
     return identity_graph
 
 async def get_and_update_missing_identity_graph(self_platform, self_identity):
-    graph_result = await get_identity_graph_from_graphdb(self_platform, self_identity)
+    is_exists, graph_result = await get_identity_graph_from_graphdb(self_platform, self_identity)
 
-    if graph_result is None:
-        asyncio.create_task(set_empty_identity_graph_to_cache(self_platform, self_identity, {}, expire_window=24*3600))
+    if is_exists is False:
+        asyncio.create_task(set_empty_identity_graph_to_cache(self_platform, self_identity, graph_result, expire_window=24*3600))
     else:
         asyncio.create_task(set_identity_graph_to_cache(self_platform, self_identity, graph_result, expire_window=24*3600))
     return graph_result
@@ -174,6 +174,7 @@ async def set_identity_graph_to_cache(self_platform, self_identity, graph_result
     if graph_id == "":
         logging.warning("Could not set {},{} to cache(graph_id is empty) {}".format(self_platform, self_identity, graph_result))
         return
+
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
     random_offset = 0
     final_expire_window = expire_window + random_offset
@@ -201,6 +202,11 @@ async def set_identity_graph_to_cache(self_platform, self_identity, graph_result
         await RedisClient.release_lock(graph_lock_key, graph_unique_value)
         # logging.debug(f"Lock released for key: {graph_lock_key}")
 
+    extra_vertices = graph_result["extra_vertices"]
+    filter_vids = []
+    for v in extra_vertices:
+        filter_vids.append(v["id"])
+
     vertices = graph_result["vertices"]
     if len(vertices) == 0:
         return
@@ -208,12 +214,15 @@ async def set_identity_graph_to_cache(self_platform, self_identity, graph_result
     vertex_ids = set()
     vertex_ids.add("{},{}".format(self_platform, self_identity))
     for v in vertices:
-        vertex_ids.add(v["id"])
+        _vid = v["id"]
+        if _vid not in filter_vids:
+            vertex_ids.add(_vid)
 
     vertex_ids = list(vertex_ids)
     vertices_lock_key = f"unique_id:{graph_id}.lock"
     vertices_unique_value = "{}:{}".format(vertices_lock_key, get_unix_microseconds())
-    # logging.debug("identity_graph set vids=[{}] to graph_id={}".format(vertex_ids, graph_id))
+    logging.debug("identity_graph set vids=[{}] to graph_id={}".format(vertex_ids, graph_id))
+    logging.debug("identity_graph set filter_vids=[{}]".format(filter_vids))
     try:
         # Try acquiring the lock (with a timeout of 30 seconds)
         if await RedisClient.acquire_lock(vertices_lock_key, vertices_unique_value, lock_timeout=30):
@@ -233,11 +242,12 @@ async def set_identity_graph_to_cache(self_platform, self_identity, graph_result
         # logging.debug(f"Lock released for key: {vertices_lock_key}")
 
 async def set_empty_identity_graph_to_cache(self_platform, self_identity, empty_graph_result, expire_window):
-    empty_graph_id = "empty_graph_id"
+    empty_vertex_id = "{},{}".format(self_platform, self_identity)
+    empty_graph_id = "empty_graph_id:{}".format(empty_vertex_id)
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
     random_offset = 0
     final_expire_window = expire_window + random_offset
-    graph_cache_key = f"graph_id:{empty_graph_id}"  # e.g. graph:empty_graph_id
+    graph_cache_key = f"graph_id:{empty_graph_id}"  # e.g. graph:empty_graph_id:platform,identity
     graph_lock_key = f"{graph_cache_key}.lock"
 
     graph_unique_value = "{}:{}".format(graph_lock_key, get_unix_microseconds())
@@ -261,7 +271,6 @@ async def set_empty_identity_graph_to_cache(self_platform, self_identity, empty_
         await RedisClient.release_lock(graph_lock_key, graph_unique_value)
         # logging.debug(f"Lock released for key: {graph_lock_key}")
 
-    empty_vertex_id = "{},{}".format(self_platform, self_identity)
     vertices_lock_key = f"unique_id:{empty_vertex_id}.lock"
     vertices_unique_value = "{}:{}".format(vertices_lock_key, get_unix_microseconds())
     # logging.debug("identity_graph set vid=[{}] to empty_graph_id".format(empty_vertex_id))
@@ -288,6 +297,7 @@ async def get_identity_graph_from_graphdb(self_platform, self_identity):
     description:
     find_identity_graph query:
     curl -X GET 'http://hostname:restpp_port/restpp/query/SocialGraph/find_identity_graph?platform=VALUE&identity&[reverse_flag=VALUE]
+    return is_exists, graph_result
     '''
     headers = {
         "Content-Type": "application/json",
@@ -323,10 +333,22 @@ async def get_identity_graph_from_graphdb(self_platform, self_identity):
                 result = results[0]
                 graph_id = result["graph_id"]
 
-    if graph_id is None:
-        return None
+    if graph_id is None and not result:
+        return False, {}
 
-    return result
+    if graph_id == "" and result:
+        return False, result
+    # e.g.
+    # results[0] = [
+    #     {
+    #         "edges": [],
+    #         "extra_vertices": [],
+    #         "graph_id": "440f0bef-ee17-4fa8-a9d5-a375526e017d",
+    #         "vertices": []
+    #     }
+    # ]
+
+    return True, result
 
 async def find_identity_graph(info, self_platform, self_identity):
     '''
