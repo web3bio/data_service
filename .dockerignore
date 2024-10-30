@@ -4,9 +4,11 @@
 /.git
 /.gitignore
 /.github
+/.secret
 /docs
 /log
 /data
+src/script
 /justfile
 /Makefile
 !src/config/main.sample.toml

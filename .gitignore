@@ -7,3 +7,4 @@ data
 src/script
 src/config/*.toml
 !src/config/main.sample.toml
+manual_packaging.sh
