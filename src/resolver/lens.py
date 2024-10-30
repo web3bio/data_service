@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-07 01:31:36
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-28 00:28:20
+LastEditTime: 2024-10-30 14:47:59
 FilePath: /data_service/src/resolver/lens.py
 Description: 
 '''
@@ -530,25 +530,27 @@ async def get_lens_profile_from_cache(query_ids, expire_window):
         for query_id in query_ids:
             aliases_keys.append(f"aliases:{query_id}")
         aliases_keys = list(set(aliases_keys))
-        aliases_values = await redis_client.mget(*aliases_keys)
+
+        aliases_values_tasks = [RedisClient.get_set(key) for key in aliases_keys]
+        aliases_values = await asyncio.gather(*aliases_values_tasks)
         aliases_cache_item = dict(zip(aliases_keys, aliases_values))
 
         profile_map_aliases_key = {}
-        for alias_cache_key_bytes, profile_cache_key_bytes in aliases_cache_item.items():
+        for alias_cache_key_bytes, profile_cache_keys in aliases_cache_item.items():
             alias_cache_key = alias_cache_key_bytes.decode("utf-8") if isinstance(alias_cache_key_bytes, bytes) else alias_cache_key_bytes
-            profile_cache_key = profile_cache_key_bytes.decode("utf-8") if profile_cache_key_bytes is not None else None
-
-            if profile_cache_key is None:
+            # logging.info("get {} {}".format(alias_cache_key, profile_cache_keys))
+            if not profile_cache_keys:
                 missing_query_ids.append(alias_cache_key.removeprefix("aliases:"))
             else:
-                if profile_cache_key not in profile_map_aliases_key:
-                    profile_map_aliases_key[profile_cache_key] = []
-                profile_map_aliases_key[profile_cache_key].append(alias_cache_key.removeprefix("aliases:"))
+                for profile_cache_key in profile_cache_keys:
+                    if profile_cache_key not in profile_map_aliases_key:
+                        profile_map_aliases_key[profile_cache_key] = []
+                    profile_map_aliases_key[profile_cache_key].append(alias_cache_key.removeprefix("aliases:"))
 
-        profile_cache_keys = list(profile_map_aliases_key.keys())
-        if profile_cache_keys:
-            profile_json_values = await redis_client.mget(*profile_cache_keys)
-            profile_cache_json_values = dict(zip(profile_cache_keys, profile_json_values))
+        batch_profile_cache_keys = list(profile_map_aliases_key.keys())
+        if batch_profile_cache_keys:
+            profile_json_values = await redis_client.mget(*batch_profile_cache_keys)
+            profile_cache_json_values = dict(zip(batch_profile_cache_keys, profile_json_values))
             for profile_cache_key_bytes, profile_json_value_bytes in profile_cache_json_values.items():
                 profile_cache_key = profile_cache_key_bytes.decode("utf-8") if isinstance(profile_cache_key_bytes, bytes) else profile_cache_key_bytes
                 profile_json_value = profile_json_value_bytes.decode("utf-8") if profile_json_value_bytes is not None else None
@@ -646,6 +648,71 @@ async def set_lens_empty_profile_to_cache(query_id, empty_record, expire_window)
         await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
         # logging.debug(f"Lock released for key: {aliases_lock_key}")
 
+
+async def batch_set_lens_profile_to_cache(exist_identity_records: typing.List[IdentityRecordSimplified], expire_window):
+    aliases_map = {}
+    for cache_identity_record in exist_identity_records:
+        random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
+        final_expire_window = expire_window + random_offset
+
+        primary_id = cache_identity_record.id
+        profile_cache_key = f"profile:{primary_id}"  # e.g. profile:lens,zella.lens
+        profile_lock_key = f"{primary_id}.lock"
+
+        aliases = cache_identity_record.aliases
+        for alias in aliases:
+            alias_cache_key = f"aliases:{alias}"
+            if alias_cache_key not in aliases_map:
+                aliases_map[alias_cache_key] = []
+            aliases_map[alias_cache_key].append(profile_cache_key)
+
+        profile_unique_value = "{}:{}".format(profile_lock_key, get_unix_microseconds())
+        try:
+            # Try acquiring the lock (with a timeout of 30 seconds)
+            if await RedisClient.acquire_lock(profile_lock_key, profile_unique_value, lock_timeout=30):
+                # logging.debug(f"Lock acquired for key: {profile_lock_key}")
+                # Set the current time as 'updated_at' in "yyyy-mm-dd HH:MM:SS" format
+                cache_identity_record.updated_at = datetime.now()
+                profile_value_json = strawberry_type_to_jsonstr(cache_identity_record)
+
+                # Set the cache in Redis with the specified expiration time (in seconds)
+                redis_client = await RedisClient.get_instance()
+                await redis_client.set(profile_cache_key, profile_value_json, ex=final_expire_window)
+                # logging.debug(f"Cache updated for key: {profile_cache_key}")
+            else:
+                logging.warning(f"Could not acquire lock for key: {profile_lock_key}")
+
+        finally:
+            # Always release the lock after the critical section is done
+            await RedisClient.release_lock(profile_lock_key, profile_unique_value)
+            # logging.debug(f"Lock released for key: {profile_lock_key}")
+
+    if len(aliases_map) == 0:
+        return
+
+    unix_microseconds = get_unix_microseconds()
+    aliases_lock_key = f"aliases:{unix_microseconds}.lock"
+    aliases_unique_value = "{}:{}".format(aliases_lock_key, unix_microseconds)
+    try:
+        # Try acquiring the lock (with a timeout of 30 seconds)
+        if await RedisClient.acquire_lock(aliases_lock_key, aliases_unique_value, lock_timeout=30):
+            # logging.debug(f"Lock acquired for key: {aliases_lock_key}")
+            redis_client = await RedisClient.get_instance()
+            for alias_cache_key, profile_key_values in aliases_map.items():
+                # alias_cache_key: e.g. f"aliases:{platform,identity}"
+                # Save the mapping from[alias_key] to [real profile_key]
+                # lens address may hold multiple lens profile
+                # logging.info("set({}) add to key {}".format(profile_key_values, alias_cache_key))
+                await RedisClient.add_to_set(alias_cache_key, profile_key_values, ex=final_expire_window)
+            # logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
+        else:
+            logging.warning(f"Could not acquire lock for key: {aliases_lock_key}")
+
+    finally:
+        # Always release the lock after the critical section is done
+        await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
+        # logging.debug(f"Lock released for key: {aliases_lock_key}")
+
 async def set_lens_profile_to_cache(cache_identity_record: IdentityRecordSimplified, expire_window):
     # random_offset = 0
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
@@ -689,6 +756,7 @@ async def set_lens_profile_to_cache(cache_identity_record: IdentityRecordSimplif
             for alias in cache_identity_record.aliases:
                 alias_cache_key = f"aliases:{alias}"
                 # Save the mapping from[alias_key] to [real profile_key]
+                # logging.info("{} => {}".format(alias_cache_key, profile_cache_key))
                 await redis_client.set(alias_cache_key, profile_cache_key, ex=final_expire_window)
             # logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
         else:
@@ -839,7 +907,9 @@ async def query_and_update_missing_query_ids(query_ids):
     exists_query_ids = []
     for record in identity_records:
         exists_query_ids.extend(record.aliases)
-        asyncio.create_task(set_lens_profile_to_cache(record, expire_window=24*3600))
+
+    if identity_records:
+        asyncio.create_task(batch_set_lens_profile_to_cache(identity_records, expire_window=24*3600))
 
     empty_query_ids = list(set(query_ids) - set(exists_query_ids))
     for empty_query_id in empty_query_ids:
