@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-27 20:53:55
+LastEditTime: 2024-10-28 16:29:55
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -111,7 +111,7 @@ class RateLimitPermission(BasePermission):
     async def validate_token(self, token):
         try:
             # Validate the token
-            logging.debug("setting.AUTHENTICATE[secret] %s", setting.AUTHENTICATE["secret"])
+            # logging.debug("setting.AUTHENTICATE[secret] %s", setting.AUTHENTICATE["secret"])
             payload = jwt.decode(token, setting.AUTHENTICATE["secret"], algorithms=['HS256'])
             return True  # Token is valid
         except jwt.ExpiredSignatureError:

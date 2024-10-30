@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 19:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-27 20:53:38
+LastEditTime: 2024-10-30 13:12:00
 FilePath: /data_service/src/resolver/fetch.py
 Description: 
 '''
@@ -81,10 +81,10 @@ async def single_fetch(info, platform, identity):
         return await query_profile_by_single_cosmos(info, identity)
     else:
         return PlatformNotSupport(platform)
-    
+
     if not identity_records:
         return None
-    
+
     one = identity_records[0]
     identity_record = IdentityRecord(
         id=one.id,

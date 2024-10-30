@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:32:53
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-28 01:45:23
+LastEditTime: 2024-10-30 14:01:13
 FilePath: /data_service/src/resolver/ensname.py
 Description: 
 '''
@@ -702,16 +702,21 @@ async def query_and_update_missing_query_ids(query_ids):
 
 def filter_ensname_query_ids(identities):
     final_query_ids = set()
+    cnt = 0
     for identity in identities:
         if identity.find('.') != -1:
             if 0 < len(identity) <= 256:
                 final_query_ids.add(f"{Platform.ens.value},{identity}")
+                cnt += 1
+                if cnt >= QUERY_MAX_LIMIT:
+                    break
 
     return list(final_query_ids)
 
 async def query_ensname_profile_by_ids_cache(info, identities, require_cache=False):
-    if len(identities) > QUERY_MAX_LIMIT:
-        return ExceedRangeInput(QUERY_MAX_LIMIT)
+    # if len(identities) > QUERY_MAX_LIMIT:
+    #     return ExceedRangeInput(QUERY_MAX_LIMIT)
+    # TODO: add limit offset for pagination
 
     filter_query_ids = filter_ensname_query_ids(identities)
     if len(filter_query_ids) == 0:
