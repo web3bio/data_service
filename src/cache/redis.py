@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-14 22:40:16
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-30 13:47:33
+LastEditTime: 2024-11-01 10:08:14
 FilePath: /data_service/src/cache/redis.py
 Description: 
 '''
@@ -35,6 +35,9 @@ class RedisClient:
             values = set(values)  # Ensure no duplicates before adding
         redis_client = await cls.get_instance()
         try:
+            # Delete the existing set
+            # await redis_client.delete(set_key)
+
             # Use SADD with unpacked values
             await redis_client.sadd(set_key, *values)
             # logging.info(f"Added {values} to Redis set: {set_key}")
