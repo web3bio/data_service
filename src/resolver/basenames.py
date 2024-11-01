@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-09-06 15:40:40
 LastEditors: Zella Zhong
-LastEditTime: 2024-11-01 12:07:16
+LastEditTime: 2024-11-01 12:36:08
 FilePath: /data_service/src/resolver/basenames.py
 Description: 
 '''
@@ -580,7 +580,8 @@ async def batch_query_profile_by_basenames_db(query_ids) -> typing.List[Identity
             result = await s.execute(sql)
             db_records = result.scalars().all()
             for row in db_records:
-                profile_dict[row.namenode] = row
+                if row.name.endswith("base.eth"):
+                    profile_dict[row.namenode] = row
 
     result = []
     for namenode in profile_dict:
