@@ -4,13 +4,14 @@
 Author: Zella Zhong
 Date: 2024-10-06 19:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-30 13:12:00
+LastEditTime: 2024-11-01 07:36:53
 FilePath: /data_service/src/resolver/fetch.py
 Description: 
 '''
 import asyncio
 import logging
 from scalar.platform import Platform
+from scalar.network import Network
 from scalar.error import PlatformNotSupport
 from scalar.identity_record import IdentityRecord
 
@@ -21,7 +22,6 @@ from resolver.lens import query_profile_by_lens_handle, query_profile_by_single_
 from resolver.solana import query_profile_by_solana_addresses, query_profile_by_single_solana
 from resolver.clusters import query_profile_by_batch_clusters, query_profile_by_single_clusters
 from resolver.basenames import query_profile_by_basenames, query_profile_by_single_basenames
-from resolver.unstoppabledomains import query_profile_by_unstoppabledomains, query_profile_by_single_unstoppabledomain
 
 from resolver.bitcoin import query_profile_by_bitcoin_addresses, query_profile_by_single_bitcoin
 from resolver.litecoin import query_profile_by_litecoin_addresses, query_profile_by_single_litecoin
@@ -38,9 +38,12 @@ from resolver.farcaster import query_farcaster_profile_by_ids_cache
 from resolver.lens import query_lens_profile_by_ids_cache
 from resolver.ethereum import query_ethereum_profile_by_ids_cache
 from resolver.ensname import query_ensname_profile_by_ids_cache
+from resolver.unstoppabledomains import query_unstoppabledomains_profile_by_ids_cache
 
 
 async def single_fetch(info, platform, identity):
+    identity_records = []
+    address_list = []
     if platform == Platform.ethereum:
         # return await query_profile_by_single_address(info, identity)
         identity_records = await query_ethereum_profile_by_ids_cache(info, [identity], require_cache=True)
@@ -54,13 +57,16 @@ async def single_fetch(info, platform, identity):
         # return await query_profile_by_single_lens_handle(info, identity)
         identity_records = await query_lens_profile_by_ids_cache(info, [identity], require_cache=True)
     elif platform == Platform.solana:
-        return await query_profile_by_single_solana(info, identity)
+        record = await query_profile_by_single_solana(info, identity)
+        identity_records.append(record)
     elif platform == Platform.clusters:
-        return await query_profile_by_single_clusters(info, identity)
+        record = await query_profile_by_single_clusters(info, identity)
+        identity_records.append(record)
     elif platform == Platform.basenames:
-        return await query_profile_by_single_basenames(info, identity)
+        record = await query_profile_by_single_basenames(info, identity)
+        identity_records.append(record)
     elif platform == Platform.unstoppabledomains:
-        return await query_profile_by_single_unstoppabledomain(info, identity)
+        identity_records = await query_unstoppabledomains_profile_by_ids_cache(info, [identity], require_cache=True)
     elif platform == Platform.bitcoin:
         return await query_profile_by_single_bitcoin(info, identity)
     elif platform == Platform.litecoin:
@@ -100,6 +106,41 @@ async def single_fetch(info, platform, identity):
         updated_at=one.updated_at,
         profile=one.profile,
     )
+
+    address_list = []
+    if platform == Platform.ethereum:
+        address_list.append(identity_record.identity)
+    elif platform == Platform.ens:
+        if len(identity_record.resolved_address) == 0:
+            if len(identity_record.owner_address) > 0:
+                address_list.append(identity_record.owner_address[0].address)
+        else:
+            address_list.append(identity_record.resolved_address[0].address)
+    elif platform == Platform.farcaster:
+        if len(identity_record.owner_address) > 0:
+            for address_record in identity_record.owner_address:
+                if address_record.network == Network.ethereum:
+                    address_list.append(address_record.address)
+    elif platform == Platform.lens:
+        if len(identity_record.owner_address) > 0:
+            for address_record in identity_record.owner_address:
+                address_list.append(address_record.address)
+    elif platform == Platform.clusters:
+        if len(identity_record.owner_address) > 0:
+            for address_record in identity_record.owner_address:
+                if address_record.network == Network.ethereum:
+                    address_list.append(address_record.address)
+    elif platform == Platform.basenames:
+        if len(identity_record.resolved_address) == 0:
+            if len(identity_record.owner_address) > 0:
+                address_list.append(identity_record.owner_address[0].address)
+        else:
+            address_list.append(identity_record.resolved_address[0].address)
+    if platform != Platform.unstoppabledomains:
+        # online fetch: unstoppabledomains data needs to be fetched again
+        logging.info("online fetch: unstoppabledomains data needs to be fetched again %s", address_list)
+        await query_unstoppabledomains_profile_by_ids_cache(info, address_list, require_cache=True)
+
     return identity_record
 
 async def fetch_identity_graph_vertices(info, vertices_map):
@@ -186,6 +227,8 @@ async def batch_fetch_all(info, vertices_map):
             tasks.append(query_profile_by_basenames(info, identities))
         elif platform_enum == Platform.solana:
             tasks.append(query_profile_by_solana_addresses(info, identities))
+        elif platform_enum == Platform.unstoppabledomains:
+            tasks.append(query_unstoppabledomains_profile_by_ids_cache(info, identities, require_cache=True))
         elif platform_enum == Platform.bitcoin:
             tasks.append(query_profile_by_bitcoin_addresses(info, identities))
         elif platform_enum == Platform.litecoin:
