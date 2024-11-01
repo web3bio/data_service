@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 18:32:53
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-30 15:09:56
+LastEditTime: 2024-11-01 12:07:37
 FilePath: /data_service/src/resolver/ensname.py
 Description: 
 '''
@@ -466,6 +466,93 @@ def convert_cache_to_identity_record(cache_value):
         logging.exception(ex)
         return None
 
+async def batch_get_ensname_profile_from_cache(query_ids, expire_window):
+    '''
+    description: 
+    return {
+        cache_identity_records: List[IdentityRecordSimplified],
+        require_update_ids: List[str], # which exist in cache but expired (return old data first to speed up response)
+        missing_query_ids: List[str],  # which not exist in cache, must query_from_db
+    }
+    '''
+    try:
+        cache_identity_records = []
+        require_update_ids = []
+        missing_query_ids = []
+        redis_client = await RedisClient.get_instance()
+
+        aliases_keys = []
+        for query_id in query_ids:
+            aliases_keys.append(f"aliases:{query_id}")
+        aliases_keys = list(set(aliases_keys))
+
+        aliases_values = await redis_client.mget(*aliases_keys)
+        aliases_cache_item = dict(zip(aliases_keys, aliases_values))
+
+        profile_map_aliases_key = {}
+        for alias_cache_key_bytes, profile_cache_key_bytes in aliases_cache_item.items():
+            alias_cache_key = alias_cache_key_bytes.decode("utf-8") if isinstance(alias_cache_key_bytes, bytes) else alias_cache_key_bytes
+            profile_cache_key = profile_cache_key_bytes.decode("utf-8") if profile_cache_key_bytes is not None else None
+
+            if profile_cache_key is None:
+                missing_query_ids.append(alias_cache_key.removeprefix("aliases:"))
+            else:
+                if profile_cache_key not in profile_map_aliases_key:
+                    profile_map_aliases_key[profile_cache_key] = []
+                profile_map_aliases_key[profile_cache_key].append(alias_cache_key.removeprefix("aliases:"))
+
+        batch_profile_cache_keys = list(profile_map_aliases_key.keys())
+        if batch_profile_cache_keys:
+            profile_json_values = await redis_client.mget(*batch_profile_cache_keys)
+            profile_cache_json_values = dict(zip(batch_profile_cache_keys, profile_json_values))
+            for profile_cache_key_bytes, profile_json_value_bytes in profile_cache_json_values.items():
+                profile_cache_key = profile_cache_key_bytes.decode("utf-8") if isinstance(profile_cache_key_bytes, bytes) else profile_cache_key_bytes
+                profile_json_value = profile_json_value_bytes.decode("utf-8") if profile_json_value_bytes is not None else None
+
+                if profile_json_value is None:
+                    # add aliases:platform,alias_value to missing_query_ids
+                    missing_query_ids.append(profile_cache_key.removeprefix("profile:"))
+                    missing_aliases_ids = profile_map_aliases_key.get(profile_cache_key, [])
+                    missing_query_ids.extend(missing_aliases_ids)
+                else:
+                    profile_value_dict = json.loads(profile_json_value)
+                    updated_at = profile_value_dict.get("updated_at", None)
+                    if not updated_at:
+                        logging.warning(f"Cache key {profile_cache_key} is missing 'updated_at'. Marking for update.")
+                        missing_query_ids.append(profile_cache_key.removeprefix("profile:"))
+                    else:
+                        updated_at_datetime = parse_time_string(updated_at)
+                        now = datetime.now()
+                        # Compare now and updated_at, if value is expired in window
+                        if now - updated_at_datetime > timedelta(seconds=expire_window):
+                            if len(profile_value_dict) == 1:
+                                # only have one field(updated_at) is also not exist
+                                # logging.debug(f"Cache key {profile_cache_key} is empty. Returning old data, but marking for update.")
+                                require_update_ids.append(profile_cache_key.removeprefix("profile:"))
+                            else:
+                                # Old data is returned, but it needs to be updated
+                                # logging.debug(f"Cache key {profile_cache_key} is expired. Returning old data, but marking for update.")
+                                require_update_ids.append(profile_cache_key.removeprefix("profile:"))
+                                identity_record = convert_cache_to_identity_record(profile_value_dict)
+                                if identity_record:
+                                    cache_identity_records.append(identity_record)
+                        else:
+                            if len(profile_value_dict) == 1:
+                                # only have one field(updated_at) is also not exist
+                                # logging.debug(f"Cache key {profile_cache_key} is empty but has been caching.")
+                                continue
+                            else:
+                                # logging.debug(f"Cache key {profile_cache_key} has been caching.")
+                                identity_record = convert_cache_to_identity_record(profile_value_dict)
+                                if identity_record:
+                                    cache_identity_records.append(identity_record)
+
+        return cache_identity_records, require_update_ids, missing_query_ids
+    except Exception as ex:
+        logging.exception(ex)
+        # if cache logic is failed, just return query_from_db immediately
+        return [], [], query_ids
+
 async def get_ensname_profile_from_cache(query_ids, expire_window):
     '''
     description: 
@@ -536,7 +623,7 @@ async def set_ensname_empty_profile_to_cache(query_id, empty_record, expire_wind
     # random_offset = 0
     final_expire_window = expire_window + random_offset
 
-    profile_cache_key = f"profile:{query_id}"  # e.g. profile:lens,#notexist_profile_id which is not exist
+    profile_cache_key = f"profile:{query_id}"  # e.g. profile:ud,#notexist_profile_id which is not exist
     profile_lock_key = f"{query_id}.lock"
 
     profile_unique_value = "{}:{}".format(profile_lock_key, get_unix_microseconds())
@@ -559,6 +646,72 @@ async def set_ensname_empty_profile_to_cache(query_id, empty_record, expire_wind
         # Always release the lock after the critical section is done
         await RedisClient.release_lock(profile_lock_key, profile_unique_value)
         # logging.debug(f"Lock released for key: {profile_lock_key}")
+
+    aliases_lock_key = f"aliases:{query_id}.lock"
+    aliases_unique_value = "{}:{}".format(aliases_lock_key, get_unix_microseconds())
+    try:
+        # Try acquiring the lock (with a timeout of 30 seconds)
+        if await RedisClient.acquire_lock(aliases_lock_key, aliases_unique_value, lock_timeout=30):
+            # logging.debug(f"Lock acquired for key: {aliases_lock_key}")
+            redis_client = await RedisClient.get_instance()
+            # Save the empty query_id to [profile_key], and profile_key only have updated_at
+            alias_cache_key = f"aliases:{query_id}"
+            await redis_client.set(alias_cache_key, profile_cache_key, ex=final_expire_window)
+            # logging.debug(f"Cache updated aliases[{aliases_lock_key}] map to key[{profile_cache_key}]")
+        else:
+            logging.warning(f"Could not acquire lock for key: {aliases_lock_key}")
+
+    finally:
+        # Always release the lock after the critical section is done
+        await RedisClient.release_lock(aliases_lock_key, aliases_unique_value)
+        # logging.debug(f"Lock released for key: {aliases_lock_key}")
+
+async def batch_set_ensname_profile_to_cache(
+    cache_identity_records: typing.List[IdentityRecordSimplified], expire_window: int
+):
+    random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
+    # random_offset = 0
+    final_expire_window = expire_window + random_offset
+
+    profile_data = {}
+    aliases_data = {}
+    keys_with_expiration = []
+
+    for record in cache_identity_records:
+        primary_id = record.id
+        profile_cache_key = f"profile:{primary_id}"
+        # Set the current time as 'updated_at'
+        # in "yyyy-MM-dd HH:MM:SS" format later in strawberry_type_to_jsonstr
+        record.updated_at = datetime.now()
+        profile_value_json = strawberry_type_to_jsonstr(record)
+        profile_data[profile_cache_key] = profile_value_json
+        keys_with_expiration.append(profile_cache_key)
+
+        if record.aliases:
+            for alias in record.aliases:
+                alias_cache_key = f"aliases:{alias}"
+                aliases_data[alias_cache_key] = profile_cache_key
+                keys_with_expiration.append(alias_cache_key)
+        
+    redis_client = await RedisClient.get_instance()
+
+    # Use MSET to set all profile data
+    if profile_data:
+        await redis_client.mset(profile_data)
+    if aliases_data:
+        await redis_client.mset(aliases_data)
+    
+    # Use a Lua script to set expiration for all keys at once
+    if keys_with_expiration:
+        # Lua script to set expiration for multiple keys
+        lua_script = """
+        for i, key in ipairs(KEYS) do
+            redis.call("EXPIRE", key, tonumber(ARGV[1]))
+        end
+        """
+        await redis_client.eval(lua_script, len(keys_with_expiration), *keys_with_expiration, final_expire_window)
+
+    logging.info("ensname batch set profiles and aliases successfully, with expirations [%s]", list(profile_data.keys()))
 
 async def set_ensname_profile_to_cache(cache_identity_record: IdentityRecordSimplified, expire_window):
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
@@ -591,22 +744,39 @@ async def set_ensname_profile_to_cache(cache_identity_record: IdentityRecordSimp
         # logging.debug(f"Lock released for key: {profile_lock_key}")
 
 async def batch_query_profile_by_ensname_db(query_ids) -> typing.List[IdentityRecordSimplified]:
-    checked_names = []
+    address_list = set()
+    name_list = set()
     for _id in query_ids:
         identity = _id.split(",")[1]
-        checked_names.append(identity)
+        is_evm = is_ethereum_address(identity)
+        if is_evm:
+            address_list.add(identity)
+        else:
+            name_list.add(identity)
+
+    checked_addresses = list(address_list)
+    checked_names = list(name_list)
 
     # logging.debug("checked_names %s", checked_names)
 
     profile_fields = get_ensname_fields()
     profile_dict = {}
     async with get_session() as s:
-        sql = select(EnsnameModel).options(load_only(*profile_fields)) \
-            .filter(EnsnameModel.name.in_(checked_names))
-        result = await s.execute(sql)
-        db_records = result.scalars().all()
-        for row in db_records:
-            profile_dict[row.namenode] = row
+        if checked_names:
+            sql = select(EnsnameModel).options(load_only(*profile_fields)) \
+                .filter(EnsnameModel.name.in_(checked_names))
+            result = await s.execute(sql)
+            db_records = result.scalars().all()
+            for row in db_records:
+                profile_dict[row.namenode] = row
+        
+        if checked_addresses:
+            sql = select(EnsnameModel).options(load_only(*profile_fields)) \
+                .filter(EnsnameModel.reverse_address.in_(checked_addresses))
+            result = await s.execute(sql)
+            db_records = result.scalars().all()
+            for row in db_records:
+                profile_dict[row.namenode] = row
 
     result = []
     for namenode in profile_dict:
@@ -615,7 +785,8 @@ async def batch_query_profile_by_ensname_db(query_ids) -> typing.List[IdentityRe
             name = profile_record.name
             if name is None:
                 continue
-
+            ens_primary_id = f"{Platform.ens.value},{name}"
+            aliases = [ens_primary_id]
             resolved_addresses = []
             owner_addresses = []
             owner = profile_record.owner
@@ -628,6 +799,10 @@ async def batch_query_profile_by_ensname_db(query_ids) -> typing.List[IdentityRe
 
             network = None
             address = None
+            is_primary = profile_record.is_primary
+            reverse_address = profile_record.reverse_address
+            if is_primary and reverse_address:
+                aliases.append(f"{Platform.ens.value},{reverse_address}")
             resolved_address = profile_record.resolved_address
             if resolved_address is not None:
                 address = resolved_address
@@ -675,8 +850,6 @@ async def batch_query_profile_by_ensname_db(query_ids) -> typing.List[IdentityRe
                 social=None
             )
 
-            ens_primary_id = f"{Platform.ens.value},{name}"
-            aliases = [ens_primary_id]
             result.append(IdentityRecordSimplified(
                 id=ens_primary_id,
                 aliases=aliases,
@@ -699,9 +872,12 @@ async def query_and_update_missing_query_ids(query_ids):
     # need cache where query_id is not in storage to avoid frequency access db
 
     exists_query_ids = []
+    if identity_records:
+        asyncio.create_task(batch_get_ensname_profile_from_cache(identity_records, expire_window=24*3600))
+
     for record in identity_records:
         exists_query_ids.extend(record.aliases)
-        asyncio.create_task(set_ensname_profile_to_cache(record, expire_window=24*3600))
+        # asyncio.create_task(set_ensname_profile_to_cache(record, expire_window=24*3600))
 
     empty_query_ids = list(set(query_ids) - set(exists_query_ids))
     for empty_query_id in empty_query_ids:
@@ -713,12 +889,18 @@ def filter_ensname_query_ids(identities):
     final_query_ids = set()
     cnt = 0
     for identity in identities:
-        if identity.find('.') != -1:
-            if 0 < len(identity) <= 256:
-                final_query_ids.add(f"{Platform.ens.value},{identity}")
-                cnt += 1
-                if cnt >= QUERY_MAX_LIMIT:
-                    break
+        cnt += 1
+        is_evm = is_ethereum_address(identity)
+        if is_evm:
+            final_query_ids.add(f"{Platform.ens.value},{identity}")
+        else:
+            if 0 < len(identity) < 256:
+                # check postfix
+                if identity.find('.') != -1:
+                    final_query_ids.add(f"{Platform.ens.value},{identity}")
+
+        if cnt > QUERY_MAX_LIMIT:
+            break
 
     return list(final_query_ids)
 
@@ -741,7 +923,7 @@ async def query_ensname_profile_by_ids_cache(info, identities, require_cache=Fal
     # require_cache is True:
     cache_identity_records, \
     require_update_ids, \
-    missing_query_ids = await get_ensname_profile_from_cache(filter_query_ids, expire_window=12*3600)
+    missing_query_ids = await batch_get_ensname_profile_from_cache(filter_query_ids, expire_window=12*3600)
 
     logging.info("ensname input filter_query_ids: {}".format(filter_query_ids))
     # logging.debug("ensname missing_query_ids: {}".format(missing_query_ids))

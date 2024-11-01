@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 19:05:41
 LastEditors: Zella Zhong
-LastEditTime: 2024-11-01 07:36:53
+LastEditTime: 2024-11-01 12:04:23
 FilePath: /data_service/src/resolver/fetch.py
 Description: 
 '''
@@ -39,7 +39,7 @@ from resolver.lens import query_lens_profile_by_ids_cache
 from resolver.ethereum import query_ethereum_profile_by_ids_cache
 from resolver.ensname import query_ensname_profile_by_ids_cache
 from resolver.unstoppabledomains import query_unstoppabledomains_profile_by_ids_cache
-
+from resolver.basenames import query_basenames_profile_by_ids_cache
 
 async def single_fetch(info, platform, identity):
     identity_records = []
@@ -63,8 +63,9 @@ async def single_fetch(info, platform, identity):
         record = await query_profile_by_single_clusters(info, identity)
         identity_records.append(record)
     elif platform == Platform.basenames:
-        record = await query_profile_by_single_basenames(info, identity)
-        identity_records.append(record)
+        # record = await query_profile_by_single_basenames(info, identity)
+        # identity_records.append(record)
+        identity_records = await query_basenames_profile_by_ids_cache(info, [identity], require_cache=True)
     elif platform == Platform.unstoppabledomains:
         identity_records = await query_unstoppabledomains_profile_by_ids_cache(info, [identity], require_cache=True)
     elif platform == Platform.bitcoin:
@@ -224,7 +225,8 @@ async def batch_fetch_all(info, vertices_map):
         elif platform_enum == Platform.clusters:
             tasks.append(query_profile_by_batch_clusters(info, identities))
         elif platform_enum == Platform.basenames:
-            tasks.append(query_profile_by_basenames(info, identities))
+            # tasks.append(query_profile_by_basenames(info, identities))
+            tasks.append(query_basenames_profile_by_ids_cache(info, identities, require_cache=True))
         elif platform_enum == Platform.solana:
             tasks.append(query_profile_by_solana_addresses(info, identities))
         elif platform_enum == Platform.unstoppabledomains:

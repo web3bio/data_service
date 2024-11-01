@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-24 17:34:05
 LastEditors: Zella Zhong
-LastEditTime: 2024-11-01 10:02:07
+LastEditTime: 2024-11-01 10:59:59
 FilePath: /data_service/src/resolver/unstoppabledomains.py
 Description: 
 '''
@@ -204,7 +204,6 @@ async def get_unstoppabledomains_from_cache(query_ids, expire_window):
                         now = datetime.now()
                         # Compare now and updated_at, if value is expired in window
                         if now - updated_at_datetime > timedelta(seconds=expire_window):
-                            
                             if len(profile_value_dict) == 1:
                                 # only have one field(updated_at) is also not exist
                                 # logging.debug(f"Cache key {profile_cache_key} is empty. Returning old data, but marking for update.")
@@ -304,6 +303,7 @@ async def batch_set_unstoppabledomains_to_cache(
         expire_window (int): Expiration window in seconds.
     """
     random_offset = random.randint(0, 30 * 60)  # Adding up to 30 minutes of randomness
+    # random_offset = 0
     final_expire_window = expire_window + random_offset
 
     profile_data = {}
