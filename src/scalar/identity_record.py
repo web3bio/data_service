@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-10-06 17:59:57
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-27 22:30:53
+LastEditTime: 2024-11-01 10:09:53
 FilePath: /data_service/src/scalar/identity_record.py
 Description: 
 '''
@@ -46,6 +46,11 @@ class IdentityRecord:
         # from resolver.identity_graph import find_identity_graph
         # logging.debug("Querying for identityGraph for identity: %s", self.identity)
         # return await find_identity_graph(info, self.platform.value, self.identity)
+
+        # unstoppabledomains, space_id, dotbit which identity want to get idenity graph
+        # it's must use it's owner identity to query
+        # Because not all of profiles are available in the database
+        # need to use it's owner to query all from api
         from resolver.identity_graph import find_identity_graph_cache
         logging.debug("Querying(With Cache) for identityGraph for identity: %s", self.identity)
         return await find_identity_graph_cache(info, self.platform.value, self.identity, require_cache=True)

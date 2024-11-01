@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 22:21:45
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-28 16:29:55
+LastEditTime: 2024-10-31 18:27:34
 FilePath: /data_service/src/schema/query.py
 Description: 
 '''
@@ -173,9 +173,16 @@ class Query:
 
             _platform = item[0]
             _identity = item[1]
+
+            # ignore platform not supported
             if _platform not in Platform.__members__:
                 continue
 
+            # ignore non-offline datasource platforms
+            if _platform == Platform.unstoppabledomains.value or \
+                _platform == Platform.space_id.value or \
+                _platform == Platform.dotbit.value:
+                continue
             if _platform not in vertices_map:
                 vertices_map[_platform] = []
 

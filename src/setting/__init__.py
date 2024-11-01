@@ -4,7 +4,7 @@
 Author: Zella Zhong
 Date: 2024-08-28 19:38:25
 LastEditors: Zella Zhong
-LastEditTime: 2024-10-24 21:14:46
+LastEditTime: 2024-11-01 03:37:49
 FilePath: /data_service/src/setting/__init__.py
 Description: 
 '''
@@ -66,7 +66,7 @@ def load_dsn(config_file):
             "async_read": config["pg_dsn"]["async_read"],
             "async_write": config["pg_dsn"]["async_write"],
             "sync_read": config["pg_dsn"]["sync_read"],
-            "sync_write": config["pg_dsn"]["sync_read"],
+            "sync_write": config["pg_dsn"]["sync_write"],
         }
         return pg_dsn_settings
     except Exception as ex:
